@@ -6,8 +6,8 @@
     <title>CODEBA — Auditoria de Pesagens</title>
     <meta name="description" content="Dashboard de Auditoria de Pesagens CODEBA — Conciliação Excel vs OpenPort">
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="/static/css/responsive.css">
+    <link rel="stylesheet" href="/static/css/style.css?v=3.6">
+    <link rel="stylesheet" href="/static/css/responsive.css?v=3.6">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <!-- Google Fonts: Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -20,7 +20,7 @@
     <div id="upload-screen" class="screen">
         <div class="upload-container">
             <div class="logo">
-                <h1>CODEBA</h1>
+                <img src="/static/Logo CODEBA.png" alt="CODEBA" class="logo-img-main">
                 <p>Auditoria de Pesagens — Excel vs OpenPort</p>
             </div>
 
@@ -137,9 +137,10 @@
                         <span class="volume-total" id="volume-total-label">0 t</span>
                         <span class="volume-total-sub" id="volume-total-sub"></span>
                     </div>
-                    <div class="scope-toggle" id="scope-toggle">
-                        <button type="button" class="scope-btn active" data-scope="ok">Auditado (OK)</button>
-                        <button type="button" class="scope-btn" data-scope="all">Total</button>
+                    <div class="scope-toggle" id="scope-toggle" style="display: flex; align-items: center;">
+                        <span style="font-size: 0.85em; color: var(--text-secondary); margin-right: 8px; font-weight: 500;">Exibir nos gráficos:</span>
+                        <button type="button" class="scope-btn" data-scope="all">Todo o Volume</button>
+                        <button type="button" class="scope-btn active" data-scope="ok">Somente Aprovadas</button>
                     </div>
                 </div>
                 <div class="analytics-charts">
@@ -314,9 +315,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
-    <script src="/static/js/analytics.js"></script>
-    <script src="/static/js/charts.js"></script>
-    <script src="/static/js/history.js"></script>
-    <script src="/static/js/app.js"></script>
+    <script src="/static/js/analytics.js?v=3.5"></script>
+    <script src="/static/js/charts.js?v=3.5"></script>
+    <script src="/static/js/history.js?v=3.5"></script>
+    <script src="/static/js/app.js?v=3.5"></script>
 </body>
 </html>

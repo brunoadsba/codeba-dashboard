@@ -39,7 +39,7 @@ function renderVolumeCharts(aggregated, sectionEl) {
     const { byDateProduct, byProduct, dates, products, totalToneladas, totalViagens } = aggregated;
 
     if (totalEl) {
-        totalEl.textContent = formatTons(totalToneladas);
+        totalEl.textContent = formatChartKg(totalToneladas);
     }
 
     if (dates.length === 0 || products.length === 0) {
@@ -80,7 +80,7 @@ function renderVolumeCharts(aggregated, sectionEl) {
                     callbacks: {
                         label(ctx) {
                             const viagens = byDateProduct[ctx.label]?.[ctx.dataset.label]?.viagens || 0;
-                            return `${ctx.dataset.label}: ${formatTons(ctx.parsed.y)} (${formatViagensCount(viagens)})`;
+                            return `${ctx.dataset.label}: ${formatChartKg(ctx.parsed.y)} (${formatViagensCount(viagens)})`;
                         },
                     },
                 },
@@ -95,10 +95,10 @@ function renderVolumeCharts(aggregated, sectionEl) {
                     stacked: true,
                     ticks: {
                         color: theme.textSecondary,
-                        callback: (v) => v + ' t',
+                        callback: (v) => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(v * 1000) + ' kg',
                     },
                     grid: { color: theme.grid },
-                    title: { display: true, text: 'Toneladas', color: theme.textSecondary, font: { size: 11 } },
+                    title: { display: true, text: 'Quilogramas (kg)', color: theme.textSecondary, font: { size: 11 } },
                 },
             },
         },
@@ -135,7 +135,7 @@ function renderVolumeCharts(aggregated, sectionEl) {
                     callbacks: {
                         label(ctx) {
                             const pct = totalToneladas > 0 ? ((ctx.parsed / totalToneladas) * 100).toFixed(1) : 0;
-                            return `${ctx.label}: ${formatTons(ctx.parsed)} (${pct}%)`;
+                            return `${ctx.label}: ${formatChartKg(ctx.parsed)} (${pct}%)`;
                         },
                     },
                 },

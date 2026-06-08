@@ -1,6 +1,6 @@
 # Memória do Projeto (CODEBA Dashboard de Auditoria)
 
-**Estado Atual:** Sistema de Auditoria de Pesagens **v3.1.0** — Multi-Produto com Analytics Dinâmico, Persistência SQLite e Histórico Consultável.
+**Estado Atual:** Sistema de Auditoria de Pesagens **v3.2.0** — Multi-Produto com Analytics Dinâmico, Persistência SQLite, Histórico Consultável e Identidade Visual CODEBA.
 
 Dashboard cruza dados de múltiplas planilhas Excel (digitação manual do balanceiro, organizadas por produto) com o PDF do OpenPort (pesagem automática) para identificar divergências, propagar informação de produto, deduzir associações por histórico de placas e visualizar **volume em toneladas** por produto e período. A aplicação segue Clean Architecture e 12-Factor App.
 
@@ -283,6 +283,19 @@ Recarregar do histórico: `GET /api/runs/{id}` → mesmo pipeline de renderizaç
 16. **Períodos longos:** agrupamento por semana quando range > 90 dias para legibilidade do eixo X.
 17. **Painel de conformidade compacto:** anel de confiabilidade + chips por produto em faixa única; tipografia ampliada para legibilidade.
 18. **Repositório remoto:** [github.com/brunoadsba/codeba-dashboard](https://github.com/brunoadsba/codeba-dashboard.git)
+
+### v3.2.0 (Identidade Visual)
+
+19. **Cores da Marca e Padrão Executivo:** As cores estáticas do Tailwind foram substituídas pela **Paleta de Cores Corporativa CODEBA** (Azul Marinho, Azul Royal, Verde Petróleo e Cinza).
+20. **Variáveis CSS Dinâmicas no Chart.js:** Para suportar temas Claro e Escuro com a paleta oficial, introduzimos variáveis (`--color-litio`, `--color-manganes`, etc.) no `:root` e `.light-theme`. O `analytics.js` (`getProductColor`) foi refatorado para ler essas variáveis em tempo de execução via `getComputedStyle`, aplicando a cor correta aos gráficos (Chart.js) e aos chips de produto, garantindo responsividade de tema sem perder a identidade institucional.
+
+### v3.2.1 (Aprimoramentos de UX e Layout)
+
+21. **Fluid Typography e Layout Vertical nos KPIs:** Números na ordem de dezenas de milhões (ex: `57.536.390`) extrapolavam o layout flexível. Solução: migrar os KPI Cards (`.kpi-card`) para `flex-direction: column` centralizado, aplicando `clamp()` no `font-size` para dimensionamento dinâmico baseado na largura (`vw`) sem gerar quebras indesejadas, e separando a unidade de medida ("kg") como sufixo.
+22. **Rodapé Dinâmico Multi-Cálculo:** A tabela de Pesagens OK passou a calcular e exibir ativamente no rodapé os totais de Peso Bruto, Tara e Peso Líquido lado a lado, com a introdução elegante do contador de viagens à esquerda, otimizando o preenchimento da `grid`.
+23. **Fuzzy Matching Escalável:** A lógica do `analytics.js` unifica dezenas de planilhas de um mesmo produto mas com shippers/clientes diversos (ex: `ÓXIDO DE MAGNÉSIO - MAGNESITA` vs `ÓXIDO DE MAGNÉSIO - IBAR NORDESTE`) utilizando `string.includes()`, permitindo mapeamento de cor nativa e processamento sem distorções no frontend.
+24. **Afinidade de Controles Analíticos:** Toggles ambíguos ("Auditado (OK)" vs "Total") foram refatorados com introdução de labels visuais claras (`Exibir nos gráficos: Todo o Volume / Somente Aprovadas`), tornando a intenção do controle explícita e imutável.
+25. **Cache Busting Definitivo:** Implantação de "version bump" (`?v=3.6`) rigorosa nas tags `<script>` e `<link>` dentro do `index.html` para anular os efeitos destrutivos de *cache stale* do navegador Chrome na injeção de novas regras de UX e CSS.
 
 ---
 

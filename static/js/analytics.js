@@ -10,17 +10,17 @@ const filterState = {
     volumeScope: 'ok',
 };
 
-const PRODUCT_COLORS = {
-    'LITIO': '#a78bfa',
-    'LÍTIO': '#a78bfa',
-    'MANGANES': '#f59e0b',
-    'MANGANÊS': '#f59e0b',
-    'MILHO': '#eab308',
-    'NIQUEL': '#64748b',
-    'NÍQUEL': '#64748b',
-    'ÓXIDO DE MAGNÉSIO': '#38bdf8',
-    'OXIDO DE MAGNESIO': '#38bdf8',
-    'Outros': '#94a3b8',
+const PRODUCT_COLORS_KEYS = {
+    'LITIO': '--color-litio',
+    'LÍTIO': '--color-litio',
+    'MANGANES': '--color-manganes',
+    'MANGANÊS': '--color-manganes',
+    'MILHO': '--color-milho',
+    'NIQUEL': '--color-niquel',
+    'NÍQUEL': '--color-niquel',
+    'ÓXIDO DE MAGNÉSIO': '--color-oxido',
+    'OXIDO DE MAGNESIO': '--color-oxido',
+    'Outros': '--color-outros',
 };
 
 function parseBrDate(str) {
@@ -77,12 +77,22 @@ function normalizeProductName(prod) {
 
 function getProductColor(produto) {
     const key = normalizeProductName(produto);
-    if (PRODUCT_COLORS[key]) return PRODUCT_COLORS[key];
-    const upper = key.toUpperCase();
-    for (const [k, v] of Object.entries(PRODUCT_COLORS)) {
-        if (upper.includes(k) || k.includes(upper)) return v;
+    let varName = PRODUCT_COLORS_KEYS.Outros;
+    
+    if (PRODUCT_COLORS_KEYS[key]) {
+        varName = PRODUCT_COLORS_KEYS[key];
+    } else {
+        const upper = key.toUpperCase();
+        for (const [k, v] of Object.entries(PRODUCT_COLORS_KEYS)) {
+            if (upper.includes(k) || k.includes(upper)) {
+                varName = v;
+                break;
+            }
+        }
     }
-    return PRODUCT_COLORS.Outros;
+    
+    const style = getComputedStyle(document.body);
+    return style.getPropertyValue(varName).trim() || '#94a3b8';
 }
 
 function applyFilters(data, filters = filterState) {
@@ -204,13 +214,12 @@ function detectPeriodFromItems(okItems, divItems, dateStart, dateEnd) {
     return fmt(min) + ' — ' + fmt(max) + '/' + max.getFullYear();
 }
 
-const formatTons = (val) => new Intl.NumberFormat('pt-BR', {
-    maximumFractionDigits: 1,
-    minimumFractionDigits: 0,
-}).format(val) + ' t';
+const formatChartKg = (valInTons) => new Intl.NumberFormat('pt-BR', {
+    maximumFractionDigits: 0
+}).format(valInTons * 1000) + ' kg';
 
 function formatViagensCount(n) {
-    return `${n} viagem${n !== 1 ? 's' : ''}`;
+    return `${n} ${n === 1 ? 'viagem' : 'viagens'}`;
 }
 
 function resetFilterState() {

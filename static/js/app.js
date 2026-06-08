@@ -156,7 +156,7 @@ function formatFileSize(bytes) {
     return (bytes / 1048576).toFixed(1) + ' MB';
 }
 
-function handleFiles(files) {
+function updateUploadState() {
     let hasExcel = selectedFiles.some(f => {
         const e = '.' + f.name.split('.').pop().toLowerCase();
         return e === '.xlsx' || e === '.xls';
@@ -166,18 +166,31 @@ function handleFiles(files) {
         return e === '.pdf';
     });
 
+    if (hasExcel) expectExcel.classList.add('received');
+    else expectExcel.classList.remove('received');
+
+    if (hasPdf) expectPdf.classList.add('received');
+    else expectPdf.classList.remove('received');
+
+    if (selectedFiles.length > 0) {
+        btnProcess.classList.remove('hidden');
+    } else {
+        btnProcess.classList.add('hidden');
+    }
+}
+
+function handleFiles(files) {
     for (let file of files) {
         const ext = '.' + file.name.split('.').pop().toLowerCase();
         if (!ALLOWED_EXTENSIONS.includes(ext)) continue;
+
+        // Evitar anexar o mesmo arquivo duas vezes
+        if (selectedFiles.some(f => f.name === file.name && f.size === file.size)) continue;
 
         selectedFiles.push(file);
 
         // Determine file type icon and color
         const isExcel = ext === '.xlsx' || ext === '.xls';
-        const isPdf = ext === '.pdf';
-
-        if (isExcel) hasExcel = true;
-        if (isPdf) hasPdf = true;
 
         // Build file item element (DOM API segura)
         const el = document.createElement('div');
@@ -195,24 +208,30 @@ function handleFiles(files) {
         sizeSpan.className = 'file-size';
         sizeSpan.textContent = formatFileSize(file.size);
 
-        const statusIcon = document.createElement('i');
-        statusIcon.className = 'ph ph-check-circle file-status';
-        statusIcon.style.color = 'var(--success)';
+        const removeBtn = document.createElement('i');
+        removeBtn.className = 'ph ph-trash file-remove';
+        removeBtn.title = 'Remover arquivo';
+        removeBtn.style.cursor = 'pointer';
+        removeBtn.style.color = 'var(--text-secondary)';
+        removeBtn.style.transition = 'color 0.2s';
+        
+        removeBtn.addEventListener('mouseenter', () => removeBtn.style.color = 'var(--danger)');
+        removeBtn.addEventListener('mouseleave', () => removeBtn.style.color = 'var(--text-secondary)');
+
+        removeBtn.addEventListener('click', () => {
+            selectedFiles = selectedFiles.filter(f => f !== file);
+            el.remove();
+            updateUploadState();
+        });
 
         el.appendChild(icon);
         el.appendChild(nameSpan);
         el.appendChild(sizeSpan);
-        el.appendChild(statusIcon);
+        el.appendChild(removeBtn);
         fileList.appendChild(el);
     }
 
-    // Update expected file indicators
-    if (hasExcel) expectExcel.classList.add('received');
-    if (hasPdf) expectPdf.classList.add('received');
-
-    if (selectedFiles.length > 0) {
-        btnProcess.classList.remove('hidden');
-    }
+    updateUploadState();
 }
 
 // ── Botão Substituir (voltar para upload) ───────────────────
@@ -620,7 +639,10 @@ function renderDashboard(data, filters) {
 
     const valVolume = document.getElementById('val-volume');
     const subVolume = document.getElementById('sub-volume');
-    if (valVolume) valVolume.textContent = formatTons(volumeAgg.totalToneladas);
+    if (valVolume) {
+        const kgStr = formatChartKg(volumeAgg.totalToneladas).replace(/\s*kg/i, '');
+        valVolume.innerHTML = `${kgStr}<span style="font-size: 0.55em; font-weight: 500; color: var(--text-secondary); margin-left: 4px;">kg</span>`;
+    }
     if (subVolume) {
         const scopeLabel = activeFilters.volumeScope === 'ok' ? 'OK' : 'Total';
         subVolume.textContent = `${formatViagensCount(volumeAgg.totalViagens)} · ${scopeLabel}`;
@@ -775,9 +797,9 @@ function renderProductBars(productAccuracy) {
 
         chip.appendChild(bar);
 
-        const count = document.createElement('span');
+        const count = document.createElement('div');
         count.className = 'product-chip-count';
-        count.textContent = `${p.total} viagem${p.total !== 1 ? 's' : ''}`;
+        count.textContent = `${p.total} ${p.total === 1 ? 'viagem' : 'viagens'}`;
         chip.appendChild(count);
 
         container.appendChild(chip);
@@ -877,6 +899,10 @@ function renderOkTable(items) {
     if (section) section.style.display = 'block';
     if (thead) thead.classList.remove('hidden');
 
+    let totalPesoBruto = 0;
+    let totalTara = 0;
+    let totalPesoLiquido = 0;
+    
     items.forEach(item => {
         const tr = document.createElement('tr');
 
@@ -900,18 +926,23 @@ function renderOkTable(items) {
 
         const tdBruto = document.createElement('td');
         tdBruto.className = 'text-right';
-        tdBruto.textContent = formatKg(item['Peso Bruto']);
+        const pesoBruto = item['Peso Bruto'] || 0;
+        totalPesoBruto += pesoBruto;
+        tdBruto.textContent = formatKg(pesoBruto);
         tr.appendChild(tdBruto);
 
         const tdTara = document.createElement('td');
         tdTara.className = 'text-right';
-        tdTara.textContent = formatKg(item.Tara);
+        const tara = item.Tara || 0;
+        totalTara += tara;
+        tdTara.textContent = formatKg(tara);
         tr.appendChild(tdTara);
 
         // Peso Líquido
         const tdLiquido = document.createElement('td');
         tdLiquido.className = 'text-right';
         const pesoLiquido = item['Peso Liquido'] || (item['Peso Bruto'] - item.Tara);
+        totalPesoLiquido += pesoLiquido || 0;
         tdLiquido.textContent = formatKg(pesoLiquido);
         tdLiquido.style.fontWeight = '600';
         tr.appendChild(tdLiquido);
@@ -929,6 +960,61 @@ function renderOkTable(items) {
 
         tbody.appendChild(tr);
     });
+
+    let tfoot = table.querySelector('tfoot');
+    if (!tfoot) {
+        tfoot = document.createElement('tfoot');
+        table.appendChild(tfoot);
+    }
+    tfoot.replaceChildren();
+
+    if (items.length > 0) {
+        const trFooter = document.createElement('tr');
+        
+        const tdCount = document.createElement('td');
+        tdCount.className = 'text-left';
+        tdCount.style.fontWeight = '700';
+        tdCount.style.color = 'var(--text-secondary)';
+        tdCount.textContent = `${items.length} pesagens`;
+
+        const tdDataEmpty = document.createElement('td');
+
+        const tdLabel = document.createElement('td');
+        tdLabel.className = 'text-right';
+        tdLabel.style.fontWeight = '800';
+        tdLabel.style.color = 'var(--text-primary)';
+        tdLabel.textContent = 'TOTAIS (KG):';
+
+        const tdTotalBruto = document.createElement('td');
+        tdTotalBruto.className = 'text-right';
+        tdTotalBruto.style.fontWeight = '700';
+        tdTotalBruto.style.color = 'var(--text-secondary)';
+        tdTotalBruto.textContent = `${formatKg(totalPesoBruto)} kg`;
+
+        const tdTotalTara = document.createElement('td');
+        tdTotalTara.className = 'text-right';
+        tdTotalTara.style.fontWeight = '700';
+        tdTotalTara.style.color = 'var(--text-secondary)';
+        tdTotalTara.textContent = `${formatKg(totalTara)} kg`;
+        
+        const tdTotal = document.createElement('td');
+        tdTotal.className = 'text-right';
+        tdTotal.style.fontWeight = '800';
+        tdTotal.style.color = 'var(--info)';
+        tdTotal.textContent = `${formatKg(totalPesoLiquido)} kg`;
+        
+        const tdEmpty = document.createElement('td');
+        
+        trFooter.appendChild(tdCount);
+        trFooter.appendChild(tdDataEmpty);
+        trFooter.appendChild(tdLabel);
+        trFooter.appendChild(tdTotalBruto);
+        trFooter.appendChild(tdTotalTara);
+        trFooter.appendChild(tdTotal);
+        trFooter.appendChild(tdEmpty);
+        
+        tfoot.appendChild(trFooter);
+    }
 }
 
 // ── Empty State ─────────────────────────────────────────────
