@@ -1,19 +1,21 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CODEBA — Auditoria de Pesagens</title>
     <meta name="description" content="Dashboard de Auditoria de Pesagens CODEBA — Conciliação Excel vs OpenPort">
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="/static/css/style.css?v=3.6">
-    <link rel="stylesheet" href="/static/css/responsive.css?v=3.6">
+    <link rel="stylesheet" href="/static/css/style.css?v=3.8">
+    <link rel="stylesheet" href="/static/css/responsive.css?v=3.8">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <!-- Google Fonts: Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 </head>
+
 <body class="dark-theme">
 
     <!-- ════════════ Upload Screen ════════════ -->
@@ -29,7 +31,7 @@
             <div class="drop-zone" id="drop-zone">
                 <i class="ph ph-cloud-arrow-up drop-icon"></i>
                 <h3>Arraste seus arquivos aqui</h3>
-                <p>Planilha do balanceiro (.xlsx) e Relatório OpenPort (.pdf)</p>
+                <p>Relatório de Pesagem Balança (.xlsx) e Relatório OpenPort (.pdf) Tela 7015</p>
                 <input type="file" id="file-input" multiple accept=".xlsx,.xls,.pdf" hidden>
                 <button class="btn-primary" id="btn-select-files">Selecionar Arquivos</button>
             </div>
@@ -53,7 +55,7 @@
 
             <div id="loading" class="loading hidden">
                 <div class="spinner"></div>
-                <p id="loading-text">Processando dados e conciliando...</p>
+                <p id="loading-text">Processando dados ...</p>
             </div>
         </div>
     </div>
@@ -79,7 +81,8 @@
             </div>
             <div class="actions">
                 <button class="icon-btn" id="theme-toggle" title="Alternar Tema"><i class="ph ph-sun"></i></button>
-                <button class="btn-outline" id="btn-history"><i class="ph ph-clock-counter-clockwise"></i> Histórico</button>
+                <button class="btn-outline" id="btn-history"><i class="ph ph-clock-counter-clockwise"></i>
+                    Histórico</button>
                 <button class="btn-outline" id="btn-replace"><i class="ph ph-file-plus"></i> Novo Upload</button>
                 <button class="btn-outline" id="btn-fullscreen"><i class="ph ph-monitor"></i> Apresentação</button>
                 <button class="btn-outline" id="btn-export"><i class="ph ph-download-simple"></i> Exportar CSV</button>
@@ -100,14 +103,14 @@
                         <div class="compliance-score-meta">
                             <span class="compliance-score-label">Confiabilidade</span>
                             <div class="compliance-stats-row">
-                            <span class="compliance-stat ok">
-                                <span class="dot dot-success"></span>
-                                <span id="conf-ok-count">0</span> pesagens OK
-                            </span>
-                            <span class="compliance-stat div">
-                                <span class="dot dot-danger"></span>
-                                <span id="conf-div-count">0</span> divergências
-                            </span>
+                                <span class="compliance-stat ok">
+                                    <span class="dot dot-success"></span>
+                                    <span id="conf-ok-count">0</span> pesagens OK
+                                </span>
+                                <span class="compliance-stat div">
+                                    <span class="dot dot-danger"></span>
+                                    <span id="conf-div-count">0</span> divergências
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -140,7 +143,9 @@
                         <span class="volume-total-sub" id="volume-total-sub"></span>
                     </div>
                     <div class="scope-toggle" id="scope-toggle" style="display: flex; align-items: center;">
-                        <span style="font-size: 0.85em; color: var(--text-secondary); margin-right: 8px; font-weight: 500;">Exibir nos gráficos:</span>
+                        <span
+                            style="font-size: 0.85em; color: var(--text-secondary); margin-right: 8px; font-weight: 500;">Exibir
+                            nos gráficos:</span>
                         <button type="button" class="scope-btn" data-scope="all">Todo o Volume</button>
                         <button type="button" class="scope-btn active" data-scope="ok">Somente Aprovadas</button>
                     </div>
@@ -317,9 +322,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
-    <script src="/static/js/analytics.js?v=3.5"></script>
-    <script src="/static/js/charts.js?v=3.5"></script>
-    <script src="/static/js/history.js?v=3.5"></script>
-    <script src="/static/js/app.js?v=3.5"></script>
+    <script src="/static/js/analytics.js?v=3.8"></script>
+    <script src="/static/js/charts.js?v=3.8"></script>
+    <script src="/static/js/history.js?v=3.8"></script>
+    <script src="/static/js/app.js?v=3.8"></script>
 </body>
+
 </html>

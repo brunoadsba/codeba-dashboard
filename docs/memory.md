@@ -297,6 +297,8 @@ Recarregar do histórico: `GET /api/runs/{id}` → mesmo pipeline de renderizaç
 24. **Afinidade de Controles Analíticos:** Toggles ambíguos ("Auditado (OK)" vs "Total") foram refatorados com introdução de labels visuais claras (`Exibir nos gráficos: Todo o Volume / Somente Aprovadas`), tornando a intenção do controle explícita e imutável.
 25. **Cache Busting Definitivo:** Implantação de "version bump" (`?v=3.6`) rigorosa nas tags `<script>` e `<link>` dentro do `index.html` para anular os efeitos destrutivos de *cache stale* do navegador Chrome na injeção de novas regras de UX e CSS.
 26. **Hierarquia Tipográfica de Boas-Vindas:** Na tela inicial de Upload, inserimos os títulos "PORTO DE ILHÉUS" (`h1` com alto peso e `letter-spacing` imponente) e "ANÁLISE DE DADOS" (`h2` com cor de destaque), reestruturando a hierarquia visual (`style.css`) para garantir impacto premium e autoridade corporativa logo no primeiro contato do usuário com a plataforma.
+27. **Adesão de Nomenclaturas Oficiais e Otimização do Modal:** O rótulo da área de upload foi alterado de um texto genérico para "Relatório de Pesagem Balança (.xlsx) e Relatório OpenPort (.pdf) Tela 7015", orientando melhor a operação portuária. O texto de carregamento do spinner também foi refinado.
+28. **Desbloqueio de Overflow em Auditorias de Alta Densidade:** Auditorias que resultavam em tabelas colossais (ex: 1.638 viagens na seção de Divergências) sofriam "clipping" visual devido ao limite estrutural de `max-height: 5000px` na `section-body`, utilizado para animações de *collapse*. A propriedade foi severamente majorada para `250000px`, acomodando layouts de relatórios virtualmente ilimitados no `grid` sem quebrar a UI.
 
 ---
 

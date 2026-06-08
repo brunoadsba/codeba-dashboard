@@ -1056,7 +1056,7 @@ body {
     overflow: hidden;
     transition: max-height var(--duration-slow) var(--ease-out),
                 opacity var(--duration-normal) var(--ease-out);
-    max-height: 5000px;
+    max-height: 250000px;
     opacity: 1;
 }
 
