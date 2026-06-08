@@ -30,6 +30,7 @@ def match_trips(ex_list, p_list):
                 best_p_idx = j
                 break
         if best_p_idx != -1:
+            p = p_list[best_p_idx]
             matched_ex.add(i)
             matched_p.add(best_p_idx)
             peso_liquido = ex['Peso Bruto'] - ex['Tara']
@@ -41,6 +42,7 @@ def match_trips(ex_list, p_list):
                 'Peso Liquido': peso_liquido,
                 'Produto': ex.get('Produto', ''),
                 'Cliente': ex.get('Cliente', ''),
+                'SEV': p.get('SEV', ''),
                 'Detalhe': 'Pesagem exata'
             })
             
@@ -76,7 +78,8 @@ def match_trips(ex_list, p_list):
                 'Produto': prod_ex,
                 'Cliente': cliente_ex,
                 'Peso Bruto': ex['Peso Bruto'],
-                'Tara': ex['Tara']
+                'Tara': ex['Tara'],
+                'SEV': p.get('SEV', '')
             })
         else:
             # Se não sobrou nenhum PDF para fazer par
@@ -88,7 +91,8 @@ def match_trips(ex_list, p_list):
                 'Produto': prod_ex,
                 'Cliente': cliente_ex,
                 'Peso Bruto': ex['Peso Bruto'],
-                'Tara': ex['Tara']
+                'Tara': ex['Tara'],
+                'SEV': ''
             })
             
     # 3. O que sobrou no PDF sem registro no Excel
@@ -103,7 +107,8 @@ def match_trips(ex_list, p_list):
                 'Produto': '',
                 'Cliente': '',
                 'Peso Bruto': p['Peso Bruto'],
-                'Tara': p['Tara']
+                'Tara': p['Tara'],
+                'SEV': p.get('SEV', '')
             })
             
     return ok_list, divergencias

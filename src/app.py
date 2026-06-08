@@ -20,7 +20,7 @@ from src.services.reconciliation import reconcile_data
 from src.services.persistence import init_db, save_audit_run, list_audit_runs, get_audit_run, delete_audit_run
 from src.utils.filename_parser import extract_produto_from_filename, extract_cliente_from_filename
 
-# Inicializar logs
+# Inicializar logs e carregar app
 setup_logging()
 logger = logging.getLogger(__name__)
 

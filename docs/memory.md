@@ -1,6 +1,6 @@
 # Memória do Projeto (CODEBA Dashboard de Auditoria)
 
-**Estado Atual:** Sistema de Auditoria de Pesagens **v3.2.0** — Multi-Produto com Analytics Dinâmico, Persistência SQLite, Histórico Consultável e Identidade Visual CODEBA.
+**Estado Atual:** Sistema de Auditoria de Pesagens **v3.3.0** — Multi-Produto com Analytics Dinâmico, Persistência SQLite, Histórico Consultável, Identidade Visual CODEBA e Coluna SEV.
 
 Dashboard cruza dados de múltiplas planilhas Excel (digitação manual do balanceiro, organizadas por produto) com o PDF do OpenPort (pesagem automática) para identificar divergências, propagar informação de produto, deduzir associações por histórico de placas e visualizar **volume em toneladas** por produto e período. A aplicação segue Clean Architecture e 12-Factor App.
 
@@ -299,6 +299,12 @@ Recarregar do histórico: `GET /api/runs/{id}` → mesmo pipeline de renderizaç
 26. **Hierarquia Tipográfica de Boas-Vindas:** Na tela inicial de Upload, inserimos os títulos "PORTO DE ILHÉUS" (`h1` com alto peso e `letter-spacing` imponente) e "ANÁLISE DE DADOS" (`h2` com cor de destaque), reestruturando a hierarquia visual (`style.css`) para garantir impacto premium e autoridade corporativa logo no primeiro contato do usuário com a plataforma.
 27. **Adesão de Nomenclaturas Oficiais e Otimização do Modal:** O rótulo da área de upload foi alterado de um texto genérico para "Relatório de Pesagem Balança (.xlsx) e Relatório OpenPort (.pdf) Tela 7015", orientando melhor a operação portuária. O texto de carregamento do spinner também foi refinado.
 28. **Desbloqueio de Overflow em Auditorias de Alta Densidade:** Auditorias que resultavam em tabelas colossais (ex: 1.638 viagens na seção de Divergências) sofriam "clipping" visual devido ao limite estrutural de `max-height: 5000px` na `section-body`, utilizado para animações de *collapse*. A propriedade foi severamente majorada para `250000px`, acomodando layouts de relatórios virtualmente ilimitados no `grid` sem quebrar a UI.
+
+### v3.3.0 (Correção de Bugs Críticos e Propagação da SEV)
+
+29. **Propagação da SEV (Solicitação de Entrada Veicular):** O número SEV de 6 dígitos extraído do relatório PDF do OpenPort agora é devidamente propagado em todo o fluxo de conciliação backend e exposto na interface do usuário (dashboard) nas tabelas de "Pesagens OK" e "Divergências", assim como no arquivo CSV de exportação. Ajustado o layout das tabelas e adicionada cobertura de testes automatizados (`tests/test_sev_rendering.py`).
+30. **Estabilização de Redimensionamento dos Gráficos:** Removidas regras de CSS (`width: 100% !important; height: 100% !important;` no canvas) que entravam em conflito com o comportamento responsivo nativo do Chart.js, gerando loops infinitos de redimensionamento e alto uso de CPU. Resolvido com a aplicação de `max-height: 420px` nos painéis do gráfico.
+31. **Cache Busting v4.0:** Atualização das tags de cache-busting de assets (CSS e JS) para `v4.0` no `index.html` para evitar o carregamento de scripts defasados.
 
 ---
 

@@ -40,7 +40,8 @@ def detect_plate_typos(divergencias):
                         'Produto': fp.get('Produto', ''),
                         'Cliente': fp.get('Cliente', ''),
                         'Peso Bruto': fp['Peso Bruto'],
-                        'Tara': fp['Tara']
+                        'Tara': fp['Tara'],
+                        'SEV': fe.get('SEV', '')
                     })
                     break
     

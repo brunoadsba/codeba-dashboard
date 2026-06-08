@@ -1165,33 +1165,37 @@ body {
     padding: var(--space-3) var(--space-4);
 }
 
-/* Column widths — Divergências (5 cols: Placa, Data, Produto, Tipo, Detalhe) */
+/* Column widths — Divergências (6 cols: Placa, SEV, Data, Produto, Tipo, Detalhe) */
 .divergencias-table th:nth-child(1),
-.divergencias-table td:nth-child(1) { width: 14%; }
+.divergencias-table td:nth-child(1) { width: 12%; }
 .divergencias-table th:nth-child(2),
-.divergencias-table td:nth-child(2) { width: 11%; }
+.divergencias-table td:nth-child(2) { width: 10%; }
 .divergencias-table th:nth-child(3),
-.divergencias-table td:nth-child(3) { width: 16%; }
+.divergencias-table td:nth-child(3) { width: 12%; }
 .divergencias-table th:nth-child(4),
-.divergencias-table td:nth-child(4) { width: 14%; }
+.divergencias-table td:nth-child(4) { width: 16%; }
 .divergencias-table th:nth-child(5),
-.divergencias-table td:nth-child(5) { width: 45%; white-space: normal; }
+.divergencias-table td:nth-child(5) { width: 15%; }
+.divergencias-table th:nth-child(6),
+.divergencias-table td:nth-child(6) { width: 35%; white-space: normal; }
 
-/* Column widths — OK (7 cols: Placa, Data, Produto, PB, Tara, PL, Status) */
+/* Column widths — OK (8 cols: Placa, SEV, Data, Produto, PB, Tara, PL, Status) */
 .ok-table th:nth-child(1),
 .ok-table td:nth-child(1) { width: 12%; }
 .ok-table th:nth-child(2),
-.ok-table td:nth-child(2) { width: 11%; }
+.ok-table td:nth-child(2) { width: 10%; }
 .ok-table th:nth-child(3),
-.ok-table td:nth-child(3) { width: 18%; }
+.ok-table td:nth-child(3) { width: 12%; }
 .ok-table th:nth-child(4),
-.ok-table td:nth-child(4) { width: 14%; }
+.ok-table td:nth-child(4) { width: 16%; }
 .ok-table th:nth-child(5),
 .ok-table td:nth-child(5) { width: 13%; }
 .ok-table th:nth-child(6),
-.ok-table td:nth-child(6) { width: 14%; }
+.ok-table td:nth-child(6) { width: 13%; }
 .ok-table th:nth-child(7),
-.ok-table td:nth-child(7) { width: 10%; }
+.ok-table td:nth-child(7) { width: 14%; }
+.ok-table th:nth-child(8),
+.ok-table td:nth-child(8) { width: 10%; }
 
 .audit-table tbody tr {
     transition: all var(--duration-fast) var(--ease-out);
@@ -1641,15 +1645,16 @@ body {
 .chart-panel {
     position: relative;
     min-height: 260px;
+    max-height: 420px;
 }
 
 .chart-panel-main {
     min-height: 300px;
+    max-height: 420px;
 }
 
-.chart-panel canvas {
-    width: 100% !important;
-    height: 100% !important;
+.chart-panel-side {
+    max-height: 420px;
 }
 
 /* ── Date Range Popover ──────────────────────────────────── */

@@ -25,7 +25,7 @@ def excel_dir(data_dir) -> Path:
 @pytest.fixture
 def pdf_path(data_dir) -> Path:
     """Retorna o caminho do PDF utilizado nos testes."""
-    return data_dir / "relatorios" / "13_05_2026_a_02_06_2026.pdf"
+    return data_dir / "relatorios" / "01 01 2026 a 08 06 2026.pdf"
 
 
 @pytest.fixture

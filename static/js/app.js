@@ -847,6 +847,13 @@ function renderDivergencias(items) {
         }
         tr.appendChild(tdPlaca);
 
+        // SEV
+        const tdSEV = document.createElement('td');
+        tdSEV.className = 'text-center';
+        const sev = item.SEV || '';
+        tdSEV.textContent = sev.startsWith('TEMP_SEV_') ? '—' : (sev || '—');
+        tr.appendChild(tdSEV);
+
         // Data
         const tdData = document.createElement('td');
         tdData.className = 'text-center';
@@ -913,6 +920,12 @@ function renderOkTable(items) {
         tdPlaca.appendChild(placaStrong);
         tr.appendChild(tdPlaca);
 
+        const tdSEV = document.createElement('td');
+        tdSEV.className = 'text-center';
+        const sev = item.SEV || '';
+        tdSEV.textContent = sev.startsWith('TEMP_SEV_') ? '—' : (sev || '—');
+        tr.appendChild(tdSEV);
+
         const tdData = document.createElement('td');
         tdData.className = 'text-center';
         tdData.textContent = item.Data;
@@ -977,6 +990,8 @@ function renderOkTable(items) {
         tdCount.style.color = 'var(--text-secondary)';
         tdCount.textContent = `${items.length} pesagens`;
 
+        const tdSevEmpty = document.createElement('td');
+
         const tdDataEmpty = document.createElement('td');
 
         const tdLabel = document.createElement('td');
@@ -1006,6 +1021,7 @@ function renderOkTable(items) {
         const tdEmpty = document.createElement('td');
         
         trFooter.appendChild(tdCount);
+        trFooter.appendChild(tdSevEmpty);
         trFooter.appendChild(tdDataEmpty);
         trFooter.appendChild(tdLabel);
         trFooter.appendChild(tdTotalBruto);
@@ -1154,25 +1170,29 @@ if (btnExport) {
         csv += `Total: ${(globalAuditData.ok || []).length + (globalAuditData.divergencias || []).length} viagens\n\n`;
 
         csv += 'DIVERGÊNCIAS\n';
-        csv += 'Placa;Data;Produto;Tipo do Erro;Detalhe\n';
+        csv += 'Placa;SEV;Data;Produto;Tipo do Erro;Detalhe\n';
         (globalAuditData.divergencias || []).forEach(item => {
             const placa = (item.Placa || '').replace(/;/g, ' ');
+            const sev = (item.SEV || '').replace(/;/g, ' ');
+            const sev_clean = sev.startsWith('TEMP_SEV_') ? '' : sev;
             const data = (item.Data || '').replace(/;/g, ' ');
             const produto = (item.Produto || '').replace(/;/g, ' ');
             const status = (item.Status || '').replace(/;/g, ' ');
             const detalhe = (item.Detalhe || '').replace(/;/g, ' ');
-            csv += `${placa};${data};${produto};${status};${detalhe}\n`;
+            csv += `${placa};${sev_clean};${data};${produto};${status};${detalhe}\n`;
         });
 
         csv += '\nPESAGENS OK\n';
-        csv += 'Placa;Data;Produto;Cliente;Peso Bruto (kg);Tara (kg);Peso Liquido (kg);Status\n';
+        csv += 'Placa;SEV;Data;Produto;Cliente;Peso Bruto (kg);Tara (kg);Peso Liquido (kg);Status\n';
         (globalAuditData.ok || []).forEach(item => {
             const placa = (item.Placa || '').replace(/;/g, ' ');
+            const sev = (item.SEV || '').replace(/;/g, ' ');
+            const sev_clean = sev.startsWith('TEMP_SEV_') ? '' : sev;
             const data = (item.Data || '').replace(/;/g, ' ');
             const produto = (item.Produto || '').replace(/;/g, ' ');
             const cliente = (item.Cliente || '').replace(/;/g, ' ');
             const pesoLiquido = item['Peso Liquido'] || (item['Peso Bruto'] - item.Tara);
-            csv += `${placa};${data};${produto};${cliente};${item['Peso Bruto']};${item.Tara};${pesoLiquido};OK\n`;
+            csv += `${placa};${sev_clean};${data};${produto};${cliente};${item['Peso Bruto']};${item.Tara};${pesoLiquido};OK\n`;
         });
 
         // BOM UTF-8 para Excel brasileiro
