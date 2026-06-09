@@ -1,6 +1,6 @@
 # Memória do Projeto (CODEBA Dashboard de Auditoria)
 
-**Estado Atual:** Sistema de Auditoria de Pesagens **v3.3.0** — Multi-Produto com Analytics Dinâmico, Persistência SQLite, Histórico Consultável, Identidade Visual CODEBA e Coluna SEV.
+**Estado Atual:** Sistema de Auditoria de Pesagens **v3.6.0** — Multi-Produto com Relatório de Não Conformidade PDF (ReportLab) no Padrão Simplificado e Operacional, Colunas com Enquadramento UX/UI Otimizado, Visualização em Destaque Vermelho para Erros, Histórico SQLite, Identidade Visual CODEBA e Coluna SEV.
 
 Dashboard cruza dados de múltiplas planilhas Excel (digitação manual do balanceiro, organizadas por produto) com o PDF do OpenPort (pesagem automática) para identificar divergências, propagar informação de produto, deduzir associações por histórico de placas e visualizar **volume em toneladas** por produto e período. A aplicação segue Clean Architecture e 12-Factor App.
 
@@ -28,7 +28,8 @@ Ecossistema para a CODEBA contendo:
 1. **Dashboard de Auditoria de Pesagens (Multi-Produto):** Painel web que recebe múltiplos `.xlsx` e `.pdf`, concilia automaticamente, exibe divergências, conformidade por produto e gráficos de tonelagem dinâmicos.
 2. **Persistência e Histórico:** Cada auditoria processada é salva em SQLite; o usuário pode consultar e recarregar auditorias anteriores sem reenviar arquivos.
 3. **Robô de Automação (RPA):** `scripts/rpa_codeba.py` com Playwright para coleta do relatório 7015 no OpenPort Ilhéus.
-4. **Suite de Testes:** Pytest + FastAPI `TestClient` — 14 testes cobrindo E2E, analytics, persistência e frontend.
+4. **Relatório Executivo de Não Conformidade (PDF/ReportLab):** Geração dinâmica de diagnóstico formal de nível executivo e federal para as divergências.
+5. **Suite de Testes:** Pytest + FastAPI `TestClient` — 23 testes cobrindo E2E, relatórios, analytics, persistência e frontend.
 
 ---
 
@@ -303,8 +304,33 @@ Recarregar do histórico: `GET /api/runs/{id}` → mesmo pipeline de renderizaç
 ### v3.3.0 (Correção de Bugs Críticos e Propagação da SEV)
 
 29. **Propagação da SEV (Solicitação de Entrada Veicular):** O número SEV de 6 dígitos extraído do relatório PDF do OpenPort agora é devidamente propagado em todo o fluxo de conciliação backend e exposto na interface do usuário (dashboard) nas tabelas de "Pesagens OK" e "Divergências", assim como no arquivo CSV de exportação. Ajustado o layout das tabelas e adicionada cobertura de testes automatizados (`tests/test_sev_rendering.py`).
-30. **Estabilização de Redimensionamento dos Gráficos:** Removidas regras de CSS (`width: 100% !important; height: 100% !important;` no canvas) que entravam em conflito com o comportamento responsivo nativo do Chart.js, gerando loops infinitos de redimensionamento e alto uso de CPU. Resolvido com a aplicação de `max-height: 420px` nos painéis do gráfico.
+30. **Estabilização de Redimensionamento dos Gráficos:** Removidas regras de CSS (`width: 100% !important; height: 100% !important;` no canvas) que entravam in conflito com o comportamento responsivo nativo do Chart.js, gerando loops infinitos de redimensionamento e alto uso de CPU. Resolvido com a aplicação de `max-height: 420px` nos painéis do gráfico.
 31. **Cache Busting v4.0:** Atualização das tags de cache-busting de assets (CSS e JS) para `v4.0` no `index.html` para evitar o carregamento de scripts defasados.
+
+### v3.4.0 (Relatório Técnico em PDF)
+
+32. **Geração de PDF nativo com ReportLab:** Desenvolvida a lógica de renderização PDF no backend (`report_generator.py`) usando fluxo de elementos (`platypus`) e tabelas auto-wrap para visualização e impressão direta.
+33. **Tratamento de ISO 8601 no Windows/Python:** Substituição de `strptime` por `fromisoformat` com tratamento de terminação `Z` para evitar quebras de parsing ao obter a data de criação no banco SQLite.
+34. **Similaridade Textual com difflib:** Utilização da biblioteca padrão `difflib` para classificar o grau de similaridade textual de placas associadas como Erro de Placa (typo).
+35. **Exposição de file_names no app:** Aprimoramento da persistência para carregar os nomes originais dos arquivos durante a requisição de download e detalhamento técnico.
+
+### v3.5.0 (Relatório Executivo PDF - Nível Federal)
+
+36. **Tom Executivo e Direto ao Ponto:** O relatório PDF foi inteiramente limpo de jargões de desenvolvimento ou strings brutas de depuração (`!=`, `[Planilha...]`), focando em impactos operacionais, acurácia e recomendações formais de controle.
+37. **Identidade Visual e Protocolo Federal:** Inclusão de carimbo de segurança (`CLASSIFICAÇÃO: RESTRITO / USO INTERNO`) e código de protocolo único (`SUPORT-AUD-YYYY-[RUN_ID]`) simulando padrão de empresa federal de grande porte. (Removido na v3.6.0 a pedido do usuário).
+38. **Ajuste de Margens e colWidths:** Redefinição das larguras da tabela de divergência de pesos (`t_peso`) de 571pt para 535.27pt, impedindo estouro de margem na impressão A4.
+39. **Renomeação para Gestão:** Botão de ação frontend rebatizado de "Relatório Técnico" para "Relatório Executivo PDF", com ID `btn-exec-report`, e nome do download alterado para `relatorio_executivo_auditoria_[id].pdf`.
+
+### v3.6.0 (Relatório de Não Conformidade Simplificado e UX/UI)
+
+40. **Simplificação e Remoção de Burocracia:** Alterado o título do PDF para "Relatório de Não Conformidade". Excluídos cabeçalhos burocráticos ("Classificação Restrita", "Uso Interno", etc.), campos de assinaturas e a seção de "Parecer de Auditoria".
+41. **Redistribuição de Datas e Fuso Horário:** Mantida a data do Período Auditado no topo e movida a Data de Emissão para o rodapé do corpo do PDF, alterando a localidade/fuso de "Salvador" para "Ilhéus".
+42. **Destaque Visual de Erros (Vermelho):** Modificada a coloração das placas incorretas da coluna `Placa Digitada (Excel)` para vermelho em negrito (`#EF4444`) para enfatizar o erro.
+43. **Nomenclaturas Claras e Enquadramento UX/UI:**
+    * Renomeadas as colunas para `Placa Digitada (Excel)` e `Placa Correta (OpenPort)`.
+    * Ajustadas as larguras das colunas (`[65, 130, 160, 180.27]`) para evitar quebras de linha em textos explicativos longos como *"Sem lançamento na planilha"* e *"Sem registro na balança automática"*.
+44. **Substituição de Termos Formais:** Trocamos `"consolidado"` por `"resumo"` e `"Nível de Acerto"` pela métrica mais direta `"Viagens sem Erro"`.
+45. **Plano de Ação Focado:** Remoção dos planos de calibração física de balanças e de alteração em sistema, mantendo exclusivamente o item de alinhamento e orientação aos balanceiros como um único bullet point.
 
 ---
 

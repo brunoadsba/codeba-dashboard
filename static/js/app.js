@@ -1206,6 +1206,18 @@ if (btnExport) {
     });
 }
 
+// ── Exportar Relatório Executivo PDF ────────────────────────
+const btnExecReport = document.getElementById('btn-exec-report');
+if (btnExecReport) {
+    btnExecReport.addEventListener('click', () => {
+        if (!globalAuditData || !globalAuditData.run_id) {
+            showError('Nenhum dado para exportar o relatório. Processe os arquivos primeiro.');
+            return;
+        }
+        window.location.href = `/api/runs/${globalAuditData.run_id}/report`;
+    });
+}
+
 // ── Date Range (Flatpickr) ──────────────────────────────────
 function initDateRangePicker() {
     const periodBadge = document.getElementById('period-badge');

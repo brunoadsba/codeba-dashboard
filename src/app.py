@@ -8,9 +8,9 @@ from contextlib import asynccontextmanager
 from typing import List
 
 import pandas as pd
-from fastapi import FastAPI, UploadFile, File, Query
+from fastapi import FastAPI, UploadFile, File, Query, Response
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 
 from src.config import STATIC_DIR, UPLOAD_DIR, ALLOWED_EXTENSIONS, MAX_FILE_SIZE, HOST, PORT, DATABASE_PATH
 from src.logging_config import setup_logging
@@ -18,6 +18,7 @@ from src.services.excel_parser import process_excel_file
 from src.services.pdf_parser import process_pdf_file
 from src.services.reconciliation import reconcile_data
 from src.services.persistence import init_db, save_audit_run, list_audit_runs, get_audit_run, delete_audit_run
+from src.services.report_generator import generate_markdown_report, generate_pdf_report
 from src.utils.filename_parser import extract_produto_from_filename, extract_cliente_from_filename
 
 # Inicializar logs e carregar app
@@ -69,6 +70,28 @@ async def api_get_run(run_id: str):
     if not payload:
         return JSONResponse(status_code=404, content={"error": "Auditoria não encontrada."})
     return payload
+
+
+@app.get("/api/runs/{run_id}/report")
+async def api_get_run_report(run_id: str):
+    payload = get_audit_run(DATABASE_PATH, run_id)
+    if not payload:
+        return PlainTextResponse(status_code=404, content="Auditoria não encontrada.")
+    
+    if not payload.get("resumo") and not payload.get("divergencias"):
+        return PlainTextResponse(status_code=422, content="Payload de auditoria inválido ou vazio para este run_id.")
+
+    try:
+        file_names = payload.get("file_names", [])
+        pdf_bytes = generate_pdf_report(payload=payload, file_names=file_names)
+    except Exception as e:
+        logger.error(f"Erro ao gerar relatório: {e}\n{traceback.format_exc()}")
+        return PlainTextResponse(status_code=500, content=f"Erro interno ao gerar relatório: {str(e)}")
+
+    headers = {
+        "Content-Disposition": f"attachment; filename=relatorio_executivo_auditoria_{run_id}.pdf"
+    }
+    return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
 
 
 @app.delete("/api/runs/{run_id}")

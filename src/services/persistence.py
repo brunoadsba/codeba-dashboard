@@ -118,7 +118,7 @@ def get_audit_run(db_path: str | Path, run_id: str) -> dict[str, Any] | None:
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
         row = conn.execute(
-            "SELECT payload, created_at FROM audit_runs WHERE id = ?",
+            "SELECT payload, created_at, file_names FROM audit_runs WHERE id = ?",
             (run_id,),
         ).fetchone()
     if not row:
@@ -126,6 +126,7 @@ def get_audit_run(db_path: str | Path, run_id: str) -> dict[str, Any] | None:
     payload = json.loads(row["payload"])
     payload["run_id"] = run_id
     payload["created_at"] = row["created_at"]
+    payload["file_names"] = json.loads(row["file_names"])
     return payload
 
 
