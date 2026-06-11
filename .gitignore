@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+.venv/
+venv/
+ENV/
+
+# Logs
+logs/*.log
+*.log
+
+# Runtime / Uploads temporários
+temp_uploads/*
+!temp_uploads/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment
+.env
+
+# Database local
+data/auditoria.db
+data/*.db
+
+# Artefatos de diagnóstico
+analysis_results.json

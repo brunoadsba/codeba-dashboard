@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CODEBA — Auditoria de Pesagens</title>
+    <meta name="description" content="Dashboard de Auditoria de Pesagens CODEBA — Conciliação Excel vs OpenPort">
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="/static/css/style.css?v=3.8">
+    <link rel="stylesheet" href="/static/css/responsive.css?v=3.8">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+
+<body class="dark-theme">
+
+    <!-- ════════════ Upload Screen ════════════ -->
+    <div id="upload-screen" class="screen">
+        <div class="upload-container">
+            <div class="logo">
+                <img src="/static/Logo CODEBA.png" alt="CODEBA" class="logo-img-main">
+                <h1 class="port-title">PORTO DE ILHÉUS</h1>
+                <h2 class="analysis-subtitle">ANÁLISE DE DADOS</h2>
+                <p>Auditoria de Pesagens — Excel vs OpenPort</p>
+            </div>
+
+            <div class="drop-zone" id="drop-zone">
+                <i class="ph ph-cloud-arrow-up drop-icon"></i>
+                <h3>Arraste seus arquivos aqui</h3>
+                <p>Relatório de Pesagem Balança (.xlsx) e Relatório OpenPort (.pdf) Tela 7015</p>
+                <input type="file" id="file-input" multiple accept=".xlsx,.xls,.pdf" hidden>
+                <button class="btn-primary" id="btn-select-files">Selecionar Arquivos</button>
+            </div>
+
+            <div class="expected-files" id="expected-files">
+                <div class="expected-file" id="expect-excel">
+                    <i class="ph ph-file-xls"></i>
+                    <span>Excel (.xlsx)</span>
+                </div>
+                <div class="expected-file" id="expect-pdf">
+                    <i class="ph ph-file-pdf"></i>
+                    <span>PDF OpenPort</span>
+                </div>
+            </div>
+
+            <div id="file-list" class="file-list"></div>
+
+            <button id="btn-process" class="btn-primary btn-block hidden">
+                Processar Auditoria <i class="ph ph-arrow-right"></i>
+            </button>
+
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p id="loading-text">Processando dados ...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════ Dashboard Screen ════════════ -->
+    <div id="dashboard-screen" class="screen hidden">
+
+        <!-- Topbar -->
+        <header class="topbar">
+            <div class="brand">
+                <img src="/static/Logo CODEBA.png" alt="CODEBA" class="logo-img">
+                <div class="brand-text">
+                    <h2>Auditoria de Pesagens</h2>
+                    <p class="subtitle">
+                        Excel vs OpenPort
+                        <button type="button" class="period-badge" id="period-badge" title="Filtrar período">
+                            <i class="ph ph-calendar-blank"></i>
+                            <span id="period-text">—</span>
+                            <i class="ph ph-caret-down period-caret"></i>
+                        </button>
+                    </p>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="icon-btn" id="theme-toggle" title="Alternar Tema"><i class="ph ph-sun"></i></button>
+                <button class="btn-outline" id="btn-history"><i class="ph ph-clock-counter-clockwise"></i>
+                    Histórico</button>
+                <button class="btn-outline" id="btn-replace"><i class="ph ph-file-plus"></i> Novo Upload</button>
+                <button class="btn-outline" id="btn-fullscreen"><i class="ph ph-monitor"></i> Apresentação</button>
+                <button class="btn-outline" id="btn-export"><i class="ph ph-download-simple"></i> Exportar CSV</button>
+            </div>
+        </header>
+
+        <main class="dashboard-content">
+
+            <!-- Painel compacto: Confiabilidade + Conformidade por Produto -->
+            <section class="compliance-panel fade-in-up stagger-1" id="confidence-section">
+                <div class="compliance-panel-inner">
+                    <div class="compliance-score">
+                        <div class="compliance-ring high" id="compliance-ring" style="--ring-pct: 0">
+                            <div class="compliance-ring-inner">
+                                <span class="compliance-ring-value" id="confidence-percent">—</span>
+                            </div>
+                        </div>
+                        <div class="compliance-score-meta">
+                            <span class="compliance-score-label">Confiabilidade</span>
+                            <div class="compliance-stats-row">
+                                <span class="compliance-stat ok">
+                                    <span class="dot dot-success"></span>
+                                    <span id="conf-ok-count">0</span> pesagens OK
+                                </span>
+                                <span class="compliance-stat div">
+                                    <span class="dot dot-danger"></span>
+                                    <span id="conf-div-count">0</span> divergências
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="compliance-divider" aria-hidden="true"></div>
+                    <div class="compliance-products" id="product-conformity">
+                        <span class="compliance-products-label">Por produto</span>
+                        <div id="product-bars-container" class="product-chips"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Aviso de recorte de período (upload) -->
+            <section class="trim-aviso hidden" id="trim-aviso-section" aria-live="polite">
+                <i class="ph ph-info"></i>
+                <div class="trim-aviso-body">
+                    <p class="trim-aviso-title" id="trim-aviso-title"></p>
+                    <div class="trim-aviso-content" id="trim-aviso-content"></div>
+                </div>
+                <button type="button" class="trim-aviso-dismiss" id="trim-aviso-dismiss" title="Dispensar aviso">
+                    <i class="ph ph-x"></i>
+                </button>
+            </section>
+
+            <!-- Volume Operacional -->
+            <section class="analytics-section fade-in-up stagger-2" id="analytics-section" style="display: none;">
+                <div class="analytics-header">
+                    <div class="analytics-title-group">
+                        <span class="section-label"><i class="ph ph-chart-bar"></i> Volume Operacional</span>
+                        <span class="volume-total" id="volume-total-label">0 t</span>
+                        <span class="volume-total-sub" id="volume-total-sub"></span>
+                    </div>
+                    <div class="scope-toggle" id="scope-toggle" style="display: flex; align-items: center;">
+                        <span
+                            style="font-size: 0.85em; color: var(--text-secondary); margin-right: 8px; font-weight: 500;">Exibir
+                            nos gráficos:</span>
+                        <button type="button" class="scope-btn" data-scope="all">Todo o Volume</button>
+                        <button type="button" class="scope-btn active" data-scope="ok">Somente Aprovadas</button>
+                    </div>
+                </div>
+                <div class="analytics-charts">
+                    <div class="chart-panel chart-panel-main">
+                        <canvas id="chart-volume-stacked"></canvas>
+                    </div>
+                    <div class="chart-panel chart-panel-side">
+                        <canvas id="chart-volume-donut"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- KPI Cards -->
+            <section class="kpi-grid" id="kpi-grid">
+                <div class="kpi-card total fade-in-up stagger-3">
+                    <div class="kpi-icon"><i class="ph ph-truck"></i></div>
+                    <div class="kpi-info">
+                        <div class="kpi-value" id="val-total">0</div>
+                        <div class="kpi-label">Viagens Identificadas</div>
+                        <div class="kpi-sub" id="sub-total">conciliadas no período</div>
+                    </div>
+                </div>
+                <div class="kpi-card success fade-in-up stagger-4">
+                    <div class="kpi-icon"><i class="ph ph-check-circle"></i></div>
+                    <div class="kpi-info">
+                        <div class="kpi-value" id="val-ok">0</div>
+                        <div class="kpi-label">Pesagens OK</div>
+                        <div class="kpi-sub text-success" id="sub-ok">—</div>
+                    </div>
+                </div>
+                <div class="kpi-card danger fade-in-up stagger-5" id="kpi-divergencias">
+                    <div class="kpi-icon"><i class="ph ph-warning-circle"></i></div>
+                    <div class="kpi-info">
+                        <div class="kpi-value" id="val-divergencias">0</div>
+                        <div class="kpi-label">Divergências</div>
+                        <div class="kpi-sub text-danger" id="sub-div">—</div>
+                    </div>
+                </div>
+                <div class="kpi-card accent fade-in-up stagger-5" id="kpi-worst-product">
+                    <div class="kpi-icon"><i class="ph ph-chart-pie-slice"></i></div>
+                    <div class="kpi-info">
+                        <div class="kpi-value" id="val-worst-pct">0%</div>
+                        <div class="kpi-label" id="label-worst-product">Menor Acurácia</div>
+                        <div class="kpi-sub text-warning" id="sub-worst-product">—</div>
+                    </div>
+                </div>
+                <div class="kpi-card volume fade-in-up stagger-5" id="kpi-volume">
+                    <div class="kpi-icon"><i class="ph ph-scales"></i></div>
+                    <div class="kpi-info">
+                        <div class="kpi-value kpi-value-text" id="val-volume">0 t</div>
+                        <div class="kpi-label">Volume Total</div>
+                        <div class="kpi-sub text-tertiary" id="sub-volume">—</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Filter Bar -->
+            <section class="filter-bar fade-in-up stagger-6">
+                <div class="search-wrapper">
+                    <i class="ph ph-magnifying-glass"></i>
+                    <input type="text" class="search-input" id="search-placa" placeholder="Buscar por placa...">
+                </div>
+                <select id="filter-produto" class="select-filter" title="Filtrar por produto">
+                    <option value="">Todos os Produtos</option>
+                </select>
+                <input type="date" id="filter-date" class="date-picker" title="Filtrar por data">
+                <button class="btn-sm" id="btn-filter"><i class="ph ph-funnel"></i> Filtrar</button>
+                <button class="btn-sm" id="btn-clear-filter"><i class="ph ph-x"></i> Limpar</button>
+                <span class="filter-count" id="filter-count"></span>
+            </section>
+
+            <!-- Divergências -->
+            <section class="audit-section" id="section-divergencias">
+                <div class="section-header">
+                    <h3 class="section-title">
+                        <i class="ph ph-warning-circle" style="color: var(--danger)"></i>
+                        Divergências
+                        <span class="badge-count badge-danger" id="badge-divergencias">0</span>
+                    </h3>
+                </div>
+                <div class="section-body" id="body-divergencias">
+                    <div class="table-container">
+                        <table class="audit-table divergencias-table">
+                            <thead>
+                                <tr>
+                                    <th class="text-left">Placa</th>
+                                    <th class="text-center">Data</th>
+                                    <th class="text-left">Produto</th>
+                                    <th class="text-left">Tipo do Erro</th>
+                                    <th class="text-left">Detalhe / Comparação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-divergencias">
+                                <!-- JS fill -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Pesagens OK (collapsible) -->
+            <section class="audit-section" id="section-ok">
+                <div class="section-header collapsible collapsed" id="header-ok">
+                    <i class="ph ph-caret-down collapse-icon"></i>
+                    <h3 class="section-title">
+                        <i class="ph ph-check-circle" style="color: var(--success)"></i>
+                        Pesagens OK
+                        <span class="badge-count badge-success" id="badge-ok">0</span>
+                    </h3>
+                </div>
+                <div class="section-body collapsed" id="body-ok">
+                    <div class="table-container">
+                        <table class="audit-table ok-table">
+                            <thead>
+                                <tr>
+                                    <th class="text-left">Placa</th>
+                                    <th class="text-center">Data</th>
+                                    <th class="text-left">Produto</th>
+                                    <th class="text-right">Peso Bruto (kg)</th>
+                                    <th class="text-right">Tara (kg)</th>
+                                    <th class="text-right">Peso Líquido (kg)</th>
+                                    <th class="text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-ok">
+                                <!-- JS fill -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="dashboard-footer" id="dashboard-footer">
+            Processado em <span id="footer-timestamp">—</span> · CODEBA Auditoria v3.1
+        </footer>
+    </div>
+
+    <!-- ════════════ Error Modal ════════════ -->
+    <div id="error-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-icon"><i class="ph ph-warning-circle"></i></div>
+            <h3>Atenção</h3>
+            <p id="error-modal-message">Ocorreu um erro.</p>
+            <button id="error-modal-close" class="btn-primary">Entendi</button>
+        </div>
+    </div>
+
+    <!-- Date Range Popover -->
+    <div id="date-range-popover" class="date-range-popover hidden">
+        <div class="date-range-header">Período de análise</div>
+        <input type="text" id="date-range-input" placeholder="Selecione o intervalo" readonly>
+        <div class="date-range-presets">
+            <button type="button" class="preset-btn" data-preset="today">Hoje</button>
+            <button type="button" class="preset-btn" data-preset="7d">7 dias</button>
+            <button type="button" class="preset-btn" data-preset="30d">30 dias</button>
+            <button type="button" class="preset-btn" data-preset="all">Tudo</button>
+        </div>
+    </div>
+
+    <!-- History Drawer -->
+    <div id="history-overlay" class="history-overlay"></div>
+    <aside id="history-drawer" class="history-drawer">
+        <div class="history-drawer-header">
+            <h3><i class="ph ph-clock-counter-clockwise"></i> Histórico</h3>
+            <button type="button" class="icon-btn" id="history-close" title="Fechar"><i class="ph ph-x"></i></button>
+        </div>
+        <div id="history-list" class="history-list"></div>
+    </aside>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
+    <script src="/static/js/analytics.js?v=3.8"></script>
+    <script src="/static/js/charts.js?v=3.8"></script>
+    <script src="/static/js/history.js?v=3.8"></script>
+    <script src="/static/js/app.js?v=3.8"></script>
+</body>
+
+</html>
