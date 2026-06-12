@@ -7,6 +7,47 @@ from src.utils.cleaners import clean_placa, safe_to_numeric
 
 logger = logging.getLogger(__name__)
 
+
+def _deduplicate_weighings(df):
+    """
+    Remove pesagens duplicadas do OpenPort.
+
+    O sistema OpenPort pode gerar múltiplos registros para a mesma pesagem física,
+    com pequenas variações de digitação na placa ou SEV. Duplicatas são identificadas
+    por: mesma Data + mesmo Peso Bruto + mesma Tara (match exato).
+
+    Mantém a primeira ocorrência e descarta as subsequentes.
+
+    Returns:
+        tuple: (DataFrame filtrado, quantidade de duplicatas removidas)
+    """
+    if df.empty or 'Data' not in df.columns or 'Peso Bruto' not in df.columns or 'Tara' not in df.columns:
+        return df, 0
+
+    before_count = len(df)
+
+    # Identificar duplicatas por Data + Peso Bruto + Tara (match exato), mantendo a primeira
+    duplicated_mask = df.duplicated(subset=['Data', 'Peso Bruto', 'Tara'], keep='first')
+
+    # Logar cada duplicata descartada para rastreabilidade
+    duplicated_rows = df[duplicated_mask]
+    for _, row in duplicated_rows.iterrows():
+        sev_info = f", SEV: {row['SEV']}" if 'SEV' in df.columns and pd.notna(row.get('SEV')) else ""
+        logger.info(
+            "Duplicata removida: Placa=%s, Data=%s, Bruto=%.2f, Tara=%.2f%s",
+            row.get('Placa', '?'),
+            row.get('Data', '?'),
+            row.get('Peso Bruto', 0),
+            row.get('Tara', 0),
+            sev_info
+        )
+
+    df_clean = df[~duplicated_mask].copy()
+    removed_count = before_count - len(df_clean)
+
+    return df_clean, removed_count
+
+
 def process_pdf_file(file_path):
     try:
         all_data = []
@@ -54,15 +95,21 @@ def process_pdf_file(file_path):
         df = pd.concat(all_data, ignore_index=True)
         
         col_map = {}
+        mapped_targets = set()
         for col in df.columns:
             if not col: continue
             col_str = str(col).upper()
-            if 'PLACA' in col_str: col_map[col] = 'Placa'
-            elif 'DATA' in col_str: col_map[col] = 'Data'
-            elif 'BRUTO' in col_str: col_map[col] = 'Peso Bruto'
-            elif 'TARA' in col_str: col_map[col] = 'Tara'
-            elif 'SEV' in col_str: col_map[col] = 'SEV'
-            elif 'TIPO CARGA' in col_str: col_map[col] = 'Tipo Carga'
+            target = None
+            if 'PLACA' in col_str: target = 'Placa'
+            elif 'DATA' in col_str: target = 'Data'
+            elif 'BRUTO' in col_str: target = 'Peso Bruto'
+            elif 'TARA' in col_str: target = 'Tara'
+            elif 'SEV' in col_str: target = 'SEV'
+            elif 'TIPO CARGA' in col_str: target = 'Tipo Carga'
+            
+            if target and target not in mapped_targets:
+                col_map[col] = target
+                mapped_targets.add(target)
             
         df = df.rename(columns=col_map)
         useful_cols = [c for c in ['Placa', 'Data', 'Peso Bruto', 'Tara', 'SEV', 'Tipo Carga'] if c in df.columns]
@@ -80,7 +127,12 @@ def process_pdf_file(file_path):
                 
         if 'Data' in df.columns:
             df['Data'] = pd.to_datetime(df['Data'], errors='coerce', dayfirst=True)
-            
+
+        # Desduplicação: remove pesagens duplicadas do OpenPort
+        df, duplicatas_removidas = _deduplicate_weighings(df)
+        if duplicatas_removidas > 0:
+            logger.info(f"Desduplicação PDF: {duplicatas_removidas} registro(s) duplicado(s) removido(s).")
+
         df['Fonte'] = 'PDF'
         return df
     except Exception as e:
