@@ -142,6 +142,11 @@ def reconcile_data(df_excel, df_pdf, filter_date=None):
             df_ex['Placa'] = df_ex['Placa'].apply(clean_placa)
             df_ex['Data_Merge'] = pd.to_datetime(df_ex['Data'], errors='coerce').dt.strftime('%d/%m/%Y')
             df_ex = df_ex.dropna(subset=['Data_Merge', 'Placa'])
+            
+            # Normalizar Toneladas para Kilos
+            for col in ['Peso Bruto', 'Tara']:
+                if col in df_ex.columns:
+                    df_ex[col] = df_ex[col].apply(lambda x: x * 1000 if isinstance(x, (int, float)) and 0 < x < 200 else x)
         else:
             df_ex = pd.DataFrame(columns=['Placa', 'Data_Merge', 'Peso Bruto', 'Tara', 'Produto', 'Cliente'])
 
@@ -151,6 +156,11 @@ def reconcile_data(df_excel, df_pdf, filter_date=None):
             df_p['Placa'] = df_p['Placa'].apply(clean_placa)
             df_p['Data_Merge'] = pd.to_datetime(df_p['Data'], errors='coerce').dt.strftime('%d/%m/%Y')
             df_p = df_p.dropna(subset=['Data_Merge', 'Placa'])
+            
+            # Normalizar Toneladas para Kilos
+            for col in ['Peso Bruto', 'Tara']:
+                if col in df_p.columns:
+                    df_p[col] = df_p[col].apply(lambda x: x * 1000 if isinstance(x, (int, float)) and 0 < x < 200 else x)
             
             # Agrupar por SEV mantendo a maior pesagem e o tipo de carga
             if 'SEV' in df_p.columns:
