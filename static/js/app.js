@@ -609,8 +609,12 @@ function renderDashboard(data, filters) {
     const confRing = document.getElementById('compliance-ring');
     const confOkCount = document.getElementById('conf-ok-count');
     const confDivCount = document.getElementById('conf-div-count');
+    const confSub = document.getElementById('confidence-sub');
 
     confPercent.textContent = formatPercent(pctOk);
+    if (confSub) {
+        confSub.textContent = formatViagensCount(totalProcessado);
+    }
 
     let tier = 'low';
     if (pctOk >= 80) tier = 'high';
@@ -633,8 +637,24 @@ function renderDashboard(data, filters) {
     renderProductBars(productAccuracy);
 
     // ── Volume Charts
-    const bucketWeek = shouldBucketByWeek(filteredVolume);
-    const volumeAgg = aggregateVolume(filteredVolume, bucketWeek);
+    let chartVolumeRecords = filteredVolume;
+    const limit = activeFilters.chartDaysLimit || 'all';
+    if (limit && limit !== 'all') {
+        const numDays = parseInt(limit, 10);
+        const uniqueDates = [...new Set(filteredVolume.map(r => r.data))].sort((a, b) => {
+            const da = parseBrDate(a) || new Date(0);
+            const db = parseBrDate(b) || new Date(0);
+            return da - db;
+        });
+        if (uniqueDates.length > numDays) {
+            const lastNDates = uniqueDates.slice(-numDays);
+            const dateSet = new Set(lastNDates);
+            chartVolumeRecords = filteredVolume.filter(r => dateSet.has(r.data));
+        }
+    }
+
+    const bucketWeek = shouldBucketByWeek(chartVolumeRecords);
+    const volumeAgg = aggregateVolume(chartVolumeRecords, bucketWeek);
     renderVolumeCharts(volumeAgg);
 
     const valVolume = document.getElementById('val-volume');
@@ -719,9 +739,9 @@ function renderDashboard(data, filters) {
 
     // Badges
     const badgeDiv = document.getElementById('badge-divergencias');
-    const badgeOk = document.getElementById('badge-ok');
+    // badgeOk removido
     badgeDiv.textContent = totalDiv;
-    badgeOk.textContent = totalOk;
+    // badgeOk.textContent removido
 
     // Pulse animation on divergence badge
     if (totalDiv > 0) {
@@ -743,7 +763,7 @@ function renderDashboard(data, filters) {
     renderDivergencias(filteredDiv);
 
     // ── Pesagens OK Table
-    renderOkTable(filteredOk);
+    // renderOkTable removido
 }
 
 // ── Render Product Conformity Chips ─────────────────────────
@@ -850,7 +870,11 @@ function renderDivergencias(items) {
         // Data
         const tdData = document.createElement('td');
         tdData.className = 'text-center';
-        tdData.textContent = item.Data;
+        let dataStr = item.Data || '—';
+        if (dataStr !== '—' && !dataStr.includes(':')) {
+            dataStr = `${dataStr} (Excel)`;
+        }
+        tdData.textContent = dataStr;
         tr.appendChild(tdData);
 
         // Produto
@@ -880,141 +904,6 @@ function renderDivergencias(items) {
 
         tbody.appendChild(tr);
     });
-}
-
-// ── Render OK Table ─────────────────────────────────────────
-function renderOkTable(items) {
-    const tbody = document.getElementById('tbody-ok');
-    const table = tbody ? tbody.closest('table') : null;
-    const thead = table ? table.querySelector('thead') : null;
-    tbody.replaceChildren();
-
-    const section = document.getElementById('section-ok');
-
-    if (items.length === 0) {
-        if (section) section.style.display = 'none';
-        return;
-    }
-    
-    if (section) section.style.display = 'block';
-    if (thead) thead.classList.remove('hidden');
-
-    let totalPesoBruto = 0;
-    let totalTara = 0;
-    let totalPesoLiquido = 0;
-    
-    items.forEach(item => {
-        const tr = document.createElement('tr');
-
-        const tdPlaca = document.createElement('td');
-        tdPlaca.className = 'text-left';
-        const placaStrong = document.createElement('strong');
-        placaStrong.textContent = item.Placa;
-        tdPlaca.appendChild(placaStrong);
-        tr.appendChild(tdPlaca);
-
-        const tdData = document.createElement('td');
-        tdData.className = 'text-center';
-        tdData.textContent = item.Data;
-        tr.appendChild(tdData);
-
-        // Produto
-        const tdProduto = document.createElement('td');
-        tdProduto.className = 'text-left';
-        tdProduto.appendChild(createProductBadge(item.Produto || ''));
-        tr.appendChild(tdProduto);
-
-        const tdBruto = document.createElement('td');
-        tdBruto.className = 'text-right';
-        const pesoBruto = item['Peso Bruto'] || 0;
-        totalPesoBruto += pesoBruto;
-        tdBruto.textContent = formatKg(pesoBruto);
-        tr.appendChild(tdBruto);
-
-        const tdTara = document.createElement('td');
-        tdTara.className = 'text-right';
-        const tara = item.Tara || 0;
-        totalTara += tara;
-        tdTara.textContent = formatKg(tara);
-        tr.appendChild(tdTara);
-
-        // Peso Líquido
-        const tdLiquido = document.createElement('td');
-        tdLiquido.className = 'text-right';
-        const pesoLiquido = item['Peso Liquido'] || (item['Peso Bruto'] - item.Tara);
-        totalPesoLiquido += pesoLiquido || 0;
-        tdLiquido.textContent = formatKg(pesoLiquido);
-        tdLiquido.style.fontWeight = '600';
-        tr.appendChild(tdLiquido);
-
-        const tdStatus = document.createElement('td');
-        tdStatus.className = 'text-center';
-        const spanOk = document.createElement('span');
-        spanOk.className = 'badge badge-success';
-        const okIcon = document.createElement('i');
-        okIcon.className = 'ph ph-check';
-        spanOk.appendChild(okIcon);
-        spanOk.appendChild(document.createTextNode(' OK'));
-        tdStatus.appendChild(spanOk);
-        tr.appendChild(tdStatus);
-
-        tbody.appendChild(tr);
-    });
-
-    let tfoot = table.querySelector('tfoot');
-    if (!tfoot) {
-        tfoot = document.createElement('tfoot');
-        table.appendChild(tfoot);
-    }
-    tfoot.replaceChildren();
-
-    if (items.length > 0) {
-        const trFooter = document.createElement('tr');
-        
-        const tdCount = document.createElement('td');
-        tdCount.className = 'text-left';
-        tdCount.style.fontWeight = '700';
-        tdCount.style.color = 'var(--text-secondary)';
-        tdCount.textContent = `${items.length} pesagens`;
-
-        const tdDataEmpty = document.createElement('td');
-
-        const tdLabel = document.createElement('td');
-        tdLabel.className = 'text-right';
-        tdLabel.style.fontWeight = '800';
-        tdLabel.style.color = 'var(--text-primary)';
-        tdLabel.textContent = 'TOTAIS (KG):';
-
-        const tdTotalBruto = document.createElement('td');
-        tdTotalBruto.className = 'text-right';
-        tdTotalBruto.style.fontWeight = '700';
-        tdTotalBruto.style.color = 'var(--text-secondary)';
-        tdTotalBruto.textContent = `${formatKg(totalPesoBruto)} kg`;
-
-        const tdTotalTara = document.createElement('td');
-        tdTotalTara.className = 'text-right';
-        tdTotalTara.style.fontWeight = '700';
-        tdTotalTara.style.color = 'var(--text-secondary)';
-        tdTotalTara.textContent = `${formatKg(totalTara)} kg`;
-        
-        const tdTotal = document.createElement('td');
-        tdTotal.className = 'text-right';
-        tdTotal.style.fontWeight = '800';
-        tdTotal.style.color = 'var(--info)';
-        tdTotal.textContent = `${formatKg(totalPesoLiquido)} kg`;
-        
-        const tdEmpty = document.createElement('td');
-        
-        trFooter.appendChild(tdCount);
-        trFooter.appendChild(tdDataEmpty);
-        trFooter.appendChild(tdLabel);
-        trFooter.appendChild(tdTotalBruto);
-        trFooter.appendChild(tdTotalTara);
-        trFooter.appendChild(tdTotal);
-        trFooter.appendChild(tdEmpty);
-        
-        tfoot.appendChild(trFooter);
-    }
 }
 
 // ── Empty State ─────────────────────────────────────────────
@@ -1059,6 +948,9 @@ function clearAllFilters() {
     document.querySelectorAll('.scope-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.scope === 'ok');
     });
+    document.querySelectorAll('.limit-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.limit === 'all');
+    });
     renderDashboard(null, getLegacyFilters());
 }
 
@@ -1102,14 +994,6 @@ if (filterDateInput) {
 if (filterProdutoSelect) {
     filterProdutoSelect.addEventListener('change', () => {
         renderDashboard(null, getCurrentFilters());
-    });
-}
-
-// ── Collapsible OK Section ──────────────────────────────────
-if (headerOk) {
-    headerOk.addEventListener('click', () => {
-        headerOk.classList.toggle('collapsed');
-        bodyOk.classList.toggle('collapsed');
     });
 }
 
@@ -1185,6 +1069,40 @@ if (btnExport) {
         URL.revokeObjectURL(url);
     });
 }
+
+// ── Gerar Relatório PDF ──────────────────────────────────────
+const btnReport = document.getElementById('btn-report');
+if (btnReport) {
+    btnReport.addEventListener('click', () => {
+        if (!globalAuditData) {
+            showError('Nenhum dado para exportar. Processe os arquivos primeiro.');
+            return;
+        }
+
+        const runId = typeof currentRunId !== 'undefined' ? currentRunId : (globalAuditData.run_id || null);
+        if (!runId) {
+            showError('ID da auditoria não encontrado.');
+            return;
+        }
+
+        const filters = getLegacyFilters();
+        const params = new URLSearchParams();
+        if (filters.placa) params.append('placa', filters.placa);
+        if (filters.produto) params.append('produto', filters.produto);
+        if (filters.dateStart) params.append('date_start', filters.dateStart);
+        if (filters.dateEnd) params.append('date_end', filters.dateEnd);
+
+        const url = `/api/runs/${runId}/report?${params.toString()}`;
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = '';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
+}
+
+
 
 // ── Date Range (Flatpickr) ──────────────────────────────────
 function initDateRangePicker() {
@@ -1269,6 +1187,16 @@ document.querySelectorAll('.scope-btn').forEach(btn => {
     });
 });
 
+// ── Chart Days Limit Toggle ─────────────────────────────────
+document.querySelectorAll('.limit-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.limit-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        filterState.chartDaysLimit = btn.dataset.limit;
+        renderDashboard(null, getLegacyFilters());
+    });
+});
+
 // ── History Integration ─────────────────────────────────────
 initHistory((data) => {
     globalAuditData = data;
@@ -1288,6 +1216,27 @@ if (trimAvisoDismiss) {
 }
 
 initDateRangePicker();
+
+// ── Help Drawer Integration ──────────────────────────────────
+const btnHelp = document.getElementById('btn-help');
+const helpDrawer = document.getElementById('help-drawer');
+const helpOverlay = document.getElementById('help-overlay');
+const helpClose = document.getElementById('help-close');
+
+if (btnHelp && helpDrawer && helpOverlay) {
+    btnHelp.addEventListener('click', () => {
+        helpDrawer.classList.add('open');
+        helpOverlay.classList.add('open');
+    });
+}
+
+function closeHelpDrawer() {
+    if (helpDrawer) helpDrawer.classList.remove('open');
+    if (helpOverlay) helpOverlay.classList.remove('open');
+}
+
+if (helpClose) helpClose.addEventListener('click', closeHelpDrawer);
+if (helpOverlay) helpOverlay.addEventListener('click', closeHelpDrawer);
 
 window.addEventListener('resize', () => {
     if (typeof resizeCharts === 'function') resizeCharts();

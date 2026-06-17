@@ -44,6 +44,15 @@
         height: 58px;
     }
 
+    .compliance-ring-value {
+        font-size: 13px;
+    }
+
+    .compliance-ring-sub {
+        font-size: 8px;
+        margin-top: 1px;
+    }
+
     .product-chips {
         flex-wrap: nowrap;
         overflow-x: auto;

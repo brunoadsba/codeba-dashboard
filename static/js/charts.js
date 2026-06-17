@@ -63,15 +63,14 @@ function renderVolumeCharts(aggregated, sectionEl) {
 
     stackedChartInstance = new Chart(stackedCanvas, {
         type: 'bar',
-        data: { labels: dates, datasets },
+        data: { labels: dates.map(formatDateLabel), datasets },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
             plugins: {
                 legend: {
-                    position: 'bottom',
-                    labels: { color: theme.text, boxWidth: 12, padding: 12, font: { size: 11 } },
+                    display: false,
                 },
                 tooltip: {
                     backgroundColor: theme.surface,
@@ -79,7 +78,8 @@ function renderVolumeCharts(aggregated, sectionEl) {
                     bodyColor: theme.textSecondary,
                     callbacks: {
                         label(ctx) {
-                            const viagens = byDateProduct[ctx.label]?.[ctx.dataset.label]?.viagens || 0;
+                            const dateKey = dates[ctx.dataIndex];
+                            const viagens = byDateProduct[dateKey]?.[ctx.dataset.label]?.viagens || 0;
                             return `${ctx.dataset.label}: ${formatChartKg(ctx.parsed.y)} (${formatViagensCount(viagens)})`;
                         },
                     },
@@ -88,7 +88,7 @@ function renderVolumeCharts(aggregated, sectionEl) {
             scales: {
                 x: {
                     stacked: true,
-                    ticks: { color: theme.textSecondary, maxRotation: 45, autoSkip: true, maxTicksLimit: dates.length > 31 ? 15 : 31 },
+                    ticks: { color: theme.textSecondary, maxRotation: 0, minRotation: 0, autoSkip: true, maxTicksLimit: 6 },
                     grid: { color: theme.grid },
                 },
                 y: {
@@ -125,8 +125,7 @@ function renderVolumeCharts(aggregated, sectionEl) {
             cutout: '62%',
             plugins: {
                 legend: {
-                    position: 'bottom',
-                    labels: { color: theme.text, boxWidth: 10, padding: 8, font: { size: 10 } },
+                    display: false,
                 },
                 tooltip: {
                     backgroundColor: theme.surface,
@@ -142,6 +141,22 @@ function renderVolumeCharts(aggregated, sectionEl) {
             },
         },
     });
+
+    // Render unified floating legend
+    const legendEl = document.getElementById('unified-chart-legend');
+    if (legendEl) {
+        legendEl.innerHTML = '';
+        products.forEach(prod => {
+            const color = getProductColor(prod);
+            const item = document.createElement('div');
+            item.className = 'unified-legend-item';
+            item.innerHTML = `
+                <span class="unified-legend-color" style="background-color: ${color}"></span>
+                <span>${prod}</span>
+            `;
+            legendEl.appendChild(item);
+        });
+    }
 
     const subEl = document.getElementById('volume-total-sub');
     if (subEl) {

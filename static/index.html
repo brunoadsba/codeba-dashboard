@@ -7,8 +7,8 @@
     <title>CODEBA — Auditoria de Pesagens</title>
     <meta name="description" content="Dashboard de Auditoria de Pesagens CODEBA — Conciliação Excel vs OpenPort">
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="/static/css/style.css?v=3.8">
-    <link rel="stylesheet" href="/static/css/responsive.css?v=3.8">
+    <link rel="stylesheet" href="/static/css/style.css?v=4.0">
+    <link rel="stylesheet" href="/static/css/responsive.css?v=4.0">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <!-- Google Fonts: Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -81,10 +81,12 @@
             </div>
             <div class="actions">
                 <button class="icon-btn" id="theme-toggle" title="Alternar Tema"><i class="ph ph-sun"></i></button>
+                <button class="btn-outline" id="btn-help" title="Guia do Usuário / FAQ"><i class="ph ph-question"></i> Guia / FAQ</button>
                 <button class="btn-outline" id="btn-history"><i class="ph ph-clock-counter-clockwise"></i>
                     Histórico</button>
                 <button class="btn-outline" id="btn-replace"><i class="ph ph-file-plus"></i> Novo Upload</button>
                 <button class="btn-outline" id="btn-fullscreen"><i class="ph ph-monitor"></i> Apresentação</button>
+                <button class="btn-outline" id="btn-report"><i class="ph ph-file-pdf"></i> Gerar Relatório</button>
                 <button class="btn-outline" id="btn-export"><i class="ph ph-download-simple"></i> Exportar CSV</button>
             </div>
         </header>
@@ -97,7 +99,10 @@
                     <div class="compliance-score">
                         <div class="compliance-ring high" id="compliance-ring" style="--ring-pct: 0">
                             <div class="compliance-ring-inner">
-                                <span class="compliance-ring-value" id="confidence-percent">—</span>
+                                <div class="compliance-ring-kpi">
+                                    <span class="compliance-ring-value" id="confidence-percent">—</span>
+                                    <span class="compliance-ring-sub" id="confidence-sub">—</span>
+                                </div>
                             </div>
                         </div>
                         <div class="compliance-score-meta">
@@ -142,17 +147,29 @@
                         <span class="volume-total" id="volume-total-label">0 t</span>
                         <span class="volume-total-sub" id="volume-total-sub"></span>
                     </div>
-                    <div class="scope-toggle" id="scope-toggle" style="display: flex; align-items: center;">
-                        <span
-                            style="font-size: 0.85em; color: var(--text-secondary); margin-right: 8px; font-weight: 500;">Exibir
-                            nos gráficos:</span>
-                        <button type="button" class="scope-btn" data-scope="all">Todo o Volume</button>
-                        <button type="button" class="scope-btn active" data-scope="ok">Somente Aprovadas</button>
+                    <div class="analytics-toggles" style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+                        <div class="scope-toggle" id="scope-toggle" style="display: flex; align-items: center;">
+                            <span
+                                style="font-size: 0.85em; color: var(--text-secondary); margin-right: 8px; font-weight: 500;">Exibir
+                                nos gráficos:</span>
+                            <button type="button" class="scope-btn" data-scope="all">Todo o Volume</button>
+                            <button type="button" class="scope-btn active" data-scope="ok">Somente Aprovadas</button>
+                        </div>
+                        <div class="scope-toggle" id="limit-toggle" style="display: flex; align-items: center;">
+                            <span
+                                style="font-size: 0.85em; color: var(--text-secondary); margin-right: 8px; font-weight: 500;">Filtrar dias no gráfico:</span>
+                            <button type="button" class="limit-btn active" data-limit="all">Tudo</button>
+                            <button type="button" class="limit-btn" data-limit="30">30d</button>
+                            <button type="button" class="limit-btn" data-limit="15">15d</button>
+                            <button type="button" class="limit-btn" data-limit="7">7d</button>
+                        </div>
                     </div>
+
                 </div>
                 <div class="analytics-charts">
                     <div class="chart-panel chart-panel-main">
                         <canvas id="chart-volume-stacked"></canvas>
+                        <div id="unified-chart-legend" class="unified-chart-legend"></div>
                     </div>
                     <div class="chart-panel chart-panel-side">
                         <canvas id="chart-volume-donut"></canvas>
@@ -248,37 +265,6 @@
                 </div>
             </section>
 
-            <!-- Pesagens OK (collapsible) -->
-            <section class="audit-section" id="section-ok">
-                <div class="section-header collapsible collapsed" id="header-ok">
-                    <i class="ph ph-caret-down collapse-icon"></i>
-                    <h3 class="section-title">
-                        <i class="ph ph-check-circle" style="color: var(--success)"></i>
-                        Pesagens OK
-                        <span class="badge-count badge-success" id="badge-ok">0</span>
-                    </h3>
-                </div>
-                <div class="section-body collapsed" id="body-ok">
-                    <div class="table-container">
-                        <table class="audit-table ok-table">
-                            <thead>
-                                <tr>
-                                    <th class="text-left">Placa</th>
-                                    <th class="text-center">Data</th>
-                                    <th class="text-left">Produto</th>
-                                    <th class="text-right">Peso Bruto (kg)</th>
-                                    <th class="text-right">Tara (kg)</th>
-                                    <th class="text-right">Peso Líquido (kg)</th>
-                                    <th class="text-center">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-ok">
-                                <!-- JS fill -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
         </main>
 
         <!-- Footer -->
@@ -319,13 +305,59 @@
         <div id="history-list" class="history-list"></div>
     </aside>
 
+    <!-- Help Drawer -->
+    <div id="help-overlay" class="help-overlay"></div>
+    <aside id="help-drawer" class="help-drawer">
+        <div class="help-drawer-header">
+            <h3><i class="ph ph-question"></i> Guia do Usuário & FAQ</h3>
+            <button type="button" class="icon-btn" id="help-close" title="Fechar"><i class="ph ph-x"></i></button>
+        </div>
+        <div class="help-drawer-body">
+            <div class="help-section">
+                <h4><i class="ph ph-rocket"></i> Como Usar o Sistema</h4>
+                <ol>
+                    <li>Na tela inicial, <strong>arraste e solte</strong> ou clique para carregar as planilhas Excel (.xlsx) das pesagens manuais e o Relatório OpenPort (.pdf) (tela 7015 ou 7714).</li>
+                    <li>Clique em <strong>"Processar Auditoria"</strong>. O sistema executará o cruzamento inteligente dos dados.</li>
+                    <li>Use os filtros no topo para buscar placas, filtrar por produto ou restringir o período analisado.</li>
+                </ol>
+            </div>
+            
+            <div class="help-section">
+                <h4><i class="ph ph-info"></i> Entendendo a Auditoria</h4>
+                <ul>
+                    <li><strong>Pesagens OK:</strong> Registros em que a placa e os pesos (Bruto e Tara) coincidem exatamente entre a Planilha e o PDF.</li>
+                    <li><strong>Diferença de Peso:</strong> A pesagem existe nos dois arquivos, mas os valores de peso bruto ou tara divergem.</li>
+                    <li><strong>Falta no PDF:</strong> Pesagem registrada na planilha de controle, mas ausente no relatório do OpenPort.</li>
+                    <li><strong>Falta no Excel:</strong> Pesagem automática registrada no OpenPort, mas que o balanceiro não anotou no Excel.</li>
+                    <li><strong>Erro de Placa:</strong> O sistema detectou que a placa digitada tem um erro leve (1 ou 2 caracteres) em relação ao PDF, sugerindo a correção (em verde).</li>
+                </ul>
+            </div>
+
+            <div class="help-section">
+                <h4><i class="ph ph-question"></i> Perguntas Frequentes (FAQ)</h4>
+                <div class="faq-item">
+                    <h5>Como funciona o filtro de dias no gráfico?</h5>
+                    <p>Você pode limitar a quantidade de dias exibidos (ex: 7d, 15d, 30d) usando os botões acima do gráfico para reduzir o excesso de informações visuais no eixo do tempo.</p>
+                </div>
+                <div class="faq-item">
+                    <h5>O que é o "Recorte de Período"?</h5>
+                    <p>O sistema alinha automaticamente as datas de início e fim baseando-se no cruzamento dos arquivos enviados, ignorando datas fora da interseção comum para evitar falsas divergências.</p>
+                </div>
+                <div class="faq-item">
+                    <h5>Como exportar os resultados?</h5>
+                    <p>Clique em <strong>"Gerar Relatório"</strong> para baixar um arquivo PDF formal com as inconsistências, ou em <strong>"Exportar CSV"</strong> para baixar os dados brutos reconciliados.</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
-    <script src="/static/js/analytics.js?v=3.8"></script>
-    <script src="/static/js/charts.js?v=3.8"></script>
-    <script src="/static/js/history.js?v=3.8"></script>
-    <script src="/static/js/app.js?v=3.8"></script>
+    <script src="/static/js/analytics.js?v=4.0"></script>
+    <script src="/static/js/charts.js?v=4.0"></script>
+    <script src="/static/js/history.js?v=4.0"></script>
+    <script src="/static/js/app.js?v=4.0"></script>
 </body>
 
 </html>

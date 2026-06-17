@@ -8,6 +8,7 @@ const filterState = {
     placa: '',
     produto: '',
     volumeScope: 'ok',
+    chartDaysLimit: 'all',
 };
 
 const PRODUCT_COLORS_KEYS = {
@@ -49,6 +50,22 @@ function isoToBrDate(iso) {
     const d = parseIsoDate(iso);
     if (!d) return null;
     return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
+function formatDateLabel(brDateStr) {
+    if (!brDateStr) return '';
+    const datePart = brDateStr.split(' ')[0];
+    const parts = datePart.split('/');
+    if (parts.length >= 2) {
+        const day = parts[0];
+        const monthNum = parts[1];
+        const months = {
+            '01': 'Jan', '02': 'Fev', '03': 'Mar', '04': 'Abr', '05': 'Mai', '06': 'Jun',
+            '07': 'Jul', '08': 'Ago', '09': 'Set', '10': 'Out', '11': 'Nov', '12': 'Dez'
+        };
+        return `${day}/${months[monthNum] || monthNum}`;
+    }
+    return brDateStr;
 }
 
 function isDateInRange(brDate, dateStart, dateEnd) {
@@ -143,9 +160,9 @@ function aggregateVolume(records, bucketByWeek = false) {
     let totalViagens = 0;
 
     records.forEach(r => {
-        let dateKey = r.data;
+        let dateKey = r.data ? r.data.split(' ')[0] : '';
         if (bucketByWeek) {
-            const d = parseBrDate(r.data);
+            const d = parseBrDate(dateKey);
             if (d) {
                 const jan1 = new Date(d.getFullYear(), 0, 1);
                 const week = Math.ceil(((d - jan1) / 86400000 + jan1.getDay() + 1) / 7);
@@ -228,6 +245,7 @@ function resetFilterState() {
     filterState.placa = '';
     filterState.produto = '';
     filterState.volumeScope = 'ok';
+    filterState.chartDaysLimit = 'all';
 }
 
 function syncFilterStateFromInputs() {
@@ -245,5 +263,6 @@ function getLegacyFilters() {
         placa: filterState.placa,
         produto: filterState.produto,
         volumeScope: filterState.volumeScope,
+        chartDaysLimit: filterState.chartDaysLimit,
     };
 }
