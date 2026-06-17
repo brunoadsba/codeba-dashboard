@@ -3,7 +3,7 @@ import traceback
 import pandas as pd
 
 from src.utils.cleaners import clean_placa, safe_to_numeric
-from src.utils.filename_parser import extract_produto_from_filename, extract_cliente_from_filename
+from src.utils.filename_parser import extract_produto_from_filename
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +23,27 @@ def process_excel_file(file_path):
 
                     # Header Hunting: Procurar dinamicamente nas primeiras 20 linhas
                     header_idx = None
+                    pr_val = None
                     for idx, row in df_raw.head(20).iterrows():
-                        row_str = ' '.join(row.astype(str).str.upper())
+                        row_str = ' '.join(str(val).upper() for val in row.values)
                         if 'PLACA' in row_str and ('PESO' in row_str or 'DATA' in row_str):
                             header_idx = idx
-                            break
+                        for val in row.values:
+                            val_str = str(val).upper().strip()
+                            if 'RSP:' in val_str:
+                                try:
+                                    parts = val_str.split('RSP:')
+                                    if len(parts) > 1:
+                                        pr_val = ''.join(c for c in parts[1] if c.isdigit())
+                                except Exception:
+                                    pass
+                            elif 'PR:' in val_str:
+                                try:
+                                    parts = val_str.split('PR:')
+                                    if len(parts) > 1:
+                                        pr_val = ''.join(c for c in parts[1] if c.isdigit())
+                                except Exception:
+                                    pass
 
                     if header_idx is None:
                         continue
@@ -82,8 +98,8 @@ def process_excel_file(file_path):
                         df_data['Data'] = pd.to_datetime(df_data['Data'], errors='coerce', dayfirst=True)
 
                     df_data['Produto'] = produto_from_file
-                    df_data['Cliente'] = extract_cliente_from_filename(file_path)
                     df_data['Fonte'] = 'Excel'
+                    df_data['PR'] = pr_val if pr_val else None
 
                     all_data.append(df_data)
                 except Exception as e:

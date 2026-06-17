@@ -94,26 +94,23 @@ def process_pdf_file(file_path):
             
         df = pd.concat(all_data, ignore_index=True)
         
-        col_map = {}
-        mapped_targets = set()
-        for col in df.columns:
-            if not col: continue
-            col_str = str(col).upper()
-            target = None
-            if 'PLACA' in col_str: target = 'Placa'
-            elif 'DATA' in col_str: target = 'Data'
-            elif 'BRUTO' in col_str: target = 'Peso Bruto'
-            elif 'TARA' in col_str: target = 'Tara'
-            elif 'SEV' in col_str: target = 'SEV'
-            elif 'TIPO CARGA' in col_str: target = 'Tipo Carga'
-            
-            if target and target not in mapped_targets:
-                col_map[col] = target
-                mapped_targets.add(target)
-            
-        df = df.rename(columns=col_map)
-        useful_cols = [c for c in ['Placa', 'Data', 'Peso Bruto', 'Tara', 'SEV', 'Tipo Carga'] if c in df.columns]
-        df = df[useful_cols].copy()
+        mapped_df = pd.DataFrame()
+        for target, substring in [
+            ('Placa', 'PLACA'),
+            ('Data', 'DATA'),
+            ('Peso Bruto', 'BRUTO'),
+            ('Tara', 'TARA'),
+            ('SEV', 'SEV'),
+            ('Tipo Carga', 'TIPO CARGA')
+        ]:
+            found_col = None
+            for col in df.columns:
+                if col and substring in str(col).upper():
+                    found_col = col
+                    break
+            if found_col is not None:
+                mapped_df[target] = df[found_col]
+        df = mapped_df
         
         if 'Placa' in df.columns:
             df['Placa'] = df['Placa'].apply(clean_placa)

@@ -418,7 +418,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
             Paragraph("Placa Correta<br/>(OpenPort)", th_style),
             Paragraph("Tipo do Erro", th_style),
             Paragraph("Produto", th_style),
-            Paragraph("Cliente", th_style),
+            Paragraph("SEV", th_style),
             Paragraph("PR", th_style),
             Paragraph("Peso Bruto", th_style)
         ]
@@ -448,7 +448,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
         prod = item.get("Produto", "") or ""
         prod_clean = prod.replace(" (Deduzido)", "").upper()
         
-        cliente = item.get("Cliente", "") or ""
+        sev_val = item.get("SEV", "") or ""
         pr = item.get("PR", "11050")
         peso_bruto = format_kg(item.get("Peso Bruto"))
         
@@ -466,7 +466,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
             Paragraph(placa_pdf, td_style_green_center if placa_pdf != "—" else td_style_center),
             Paragraph(status, status_style),
             Paragraph(prod_clean, td_style_left),
-            Paragraph(cliente, td_style_left),
+            Paragraph(sev_val, td_style_center),
             Paragraph(pr, td_style_center),
             Paragraph(peso_bruto, td_style_right)
         ]

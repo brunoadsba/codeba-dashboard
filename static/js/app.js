@@ -1049,14 +1049,14 @@ if (btnExport) {
         });
 
         csv += '\nPESAGENS OK\n';
-        csv += 'Placa;Data;Produto;Cliente;Peso Bruto (kg);Tara (kg);Peso Liquido (kg);Status\n';
+        csv += 'Placa;Data;Produto;SEV;Peso Bruto (kg);Tara (kg);Peso Liquido (kg);Status\n';
         (globalAuditData.ok || []).forEach(item => {
             const placa = (item.Placa || '').replace(/;/g, ' ');
             const data = (item.Data || '').replace(/;/g, ' ');
             const produto = (item.Produto || '').replace(/;/g, ' ');
-            const cliente = (item.Cliente || '').replace(/;/g, ' ');
+            const sev = (item.SEV || '').replace(/;/g, ' ');
             const pesoLiquido = item['Peso Liquido'] || (item['Peso Bruto'] - item.Tara);
-            csv += `${placa};${data};${produto};${cliente};${item['Peso Bruto']};${item.Tara};${pesoLiquido};OK\n`;
+            csv += `${placa};${data};${produto};${sev};${item['Peso Bruto']};${item.Tara};${pesoLiquido};OK\n`;
         });
 
         // BOM UTF-8 para Excel brasileiro

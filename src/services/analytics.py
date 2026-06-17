@@ -90,9 +90,13 @@ def compute_period_bounds(ok_list: list[dict], divergencias: list[dict]) -> tupl
         return None, None
 
     def parse_key(d: str) -> tuple[int, int, int]:
-        parts = d.split("/")
+        date_part = d.split(" ")[0]
+        parts = date_part.split("/")
         if len(parts) == 3:
-            return int(parts[2]), int(parts[1]), int(parts[0])
+            try:
+                return int(parts[2]), int(parts[1]), int(parts[0])
+            except ValueError:
+                pass
         return 0, 0, 0
 
     dates.sort(key=parse_key)

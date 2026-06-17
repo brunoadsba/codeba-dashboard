@@ -1,6 +1,6 @@
 # Memória do Projeto (CODEBA Dashboard de Auditoria)
 
-**Estado Atual:** Sistema de Auditoria de Pesagens **v3.2.0** — Multi-Produto com Analytics Dinâmico, Persistência SQLite, Histórico Consultável e Identidade Visual CODEBA.
+**Estado Atual:** Sistema de Auditoria de Pesagens **v3.3.0** — Multi-Produto com Analytics Dinâmico, Persistência SQLite, Histórico Consultável, Identidade Visual CODEBA, Desduplicação de Pesagens do OpenPort e Geração de Relatório PDF.
 
 Dashboard cruza dados de múltiplas planilhas Excel (digitação manual do balanceiro, organizadas por produto) com o PDF do OpenPort (pesagem automática) para identificar divergências, propagar informação de produto, deduzir associações por histórico de placas e visualizar **volume em toneladas** por produto e período. A aplicação segue Clean Architecture e 12-Factor App.
 
@@ -42,7 +42,7 @@ Ecossistema para a CODEBA contendo:
 | `config.py` | Paths, `DATABASE_PATH`, limites de upload |
 | `logging_config.py` | Logs centralizados em `logs/app.log` |
 | `services/excel_parser.py` | Header Hunting nas primeiras 20 linhas |
-| `services/pdf_parser.py` | Extração PDF via `pdfplumber` |
+| `services/pdf_parser.py` | Extração PDF via `pdfplumber` + desduplicação de pesagens |
 | `services/reconciliation.py` | Motor de conciliação + `volume` no resultado |
 | `services/post_processing.py` | Erros de placa + dedução de produto por histórico |
 | `services/analytics.py` | `build_volume_records()` — toneladas por viagem/produto/data |
@@ -217,11 +217,16 @@ operacao/
 │   ├── conftest.py               # fixture TestClient com lifespan
 │   ├── test_e2e.py
 │   ├── test_analytics.py         # v3.1
-│   └── test_persistence.py       # v3.1
+│   ├── test_persistence.py       # v3.1
+│   └── test_report.py            # v3.3.0 (endpoint de relatórios)
 │
 ├── scripts/
 │   ├── rpa_codeba.py
 │   └── diagnostics/
+│
+├── scratch/
+│   ├── run_e2e_tests.py          # v3.3.0 (testes E2E standalone com requests)
+│   └── run_all_tests.py          # v3.3.0 (testes unitários + E2E standalone)
 │
 ├── logs/
 └── temp_uploads/
@@ -232,13 +237,15 @@ operacao/
 ## Suite de Testes
 
 **Comando:** `python -m pytest tests/ -v`  
-**Total:** 14 testes
+**Total:** 23 testes
 
 | Arquivo | Cobertura |
 |---------|-----------|
 | `test_e2e.py` | Upload completo, só PDF, frontend + API histórico + `volume` |
 | `test_analytics.py` | Normalização produto, peso líquido, `build_volume_records`, período |
 | `test_persistence.py` | Save/load, listagem, delete, init do banco |
+| `test_report.py` | Geração de relatório PDF com e sem filtros ativos |
+| `test_deduplication.py` | Desduplicação: duplicatas exatas, pesos diferentes, DataFrame vazio, SEV |
 
 O `TestClient` usa fixture com `with TestClient(app)` para disparar o lifespan e inicializar o SQLite.
 
@@ -302,9 +309,42 @@ Recarregar do histórico: `GET /api/runs/{id}` → mesmo pipeline de renderizaç
 
 ---
 
+### v3.2.2 (Desduplicação de Pesagens)
+
+29. **Desduplicação na origem (pdf_parser.py):** O sistema OpenPort gera registros duplicados de pesagem com pequenas variações de digitação na placa ou SEV (ex: pesagens 44354/44358, onde a placa aparece como `RDP6D75` e `RDP6075`). Implementada função `_deduplicate_weighings()` no `pdf_parser.py` que remove duplicatas **antes** dos dados chegarem ao motor de conciliação. Critério: mesma `Data` + mesmo `Peso Bruto` + mesma `Tara` (match exato). Mantém a primeira ocorrência. Cada duplicata descartada é logada com Placa, Data, Pesos e SEV para rastreabilidade. Isso elimina falsos alertas de "Falta no Excel" e "Diferença de Peso" causados por sujeira do OpenPort, sem alterar nenhuma outra camada do sistema (blindagem da regra de negócio no `reconciliation.py`).
+
+### v3.2.3 (Validação E2E com Dados Reais)
+
+30. **Ambiente Offline e Executável de Teste:** O ambiente de produção offline impede a instalação do `pytest`. Desenvolveu-se um script de testes standalone (`scratch/e2e_test_runner.py`) usando a biblioteca `requests` pré-instalada para automatizar o upload, conferência dos cálculos, persistência em banco e leitura do histórico sem necessidade do pytest.
+31. **Validação E2E e Métricas de Referência:** O processamento com os arquivos reais (`ÓXIDO DE MAGNÉSIO - MAGNESITA.xlsx`, `Relatório de Pesquisa - 7015.pdf`, `LITIO - CBL.xlsx`) validou a corretude do motor de conciliação. As métricas de referência estabelecidas foram: Confiabilidade de 88.2% (60/68 viagens OK), 8 divergências, 4 deduções de produto automáticas de Lítio e Óxido de Magnésio, e volume total de 2.807,6 t.
+---
+
+### v3.3.0 (Botão "Gerar Relatório" & Testes E2E Offline)
+
+32. **Download de Relatório com Filtros Ativos:** Adicionado no `app.js` o event listener para o botão `#btn-report` ("Gerar Relatório"), utilizando um elemento `<a>` dinâmico temporário para realizar o download. Isso evita abas em branco e transmite os filtros selecionados (`placa`, `produto`, `date_start`, `date_end`) para o endpoint `/api/runs/{run_id}/report`.
+33. **Testes de Unidade para Relatório PDF:** Criado o teste [test_report.py](file:///y:/Nazaro/codeba-dashboard-main/tests/test_report.py) validando o download do PDF e os cabeçalhos de resposta HTTP corretos (como `Content-Type: application/pdf` e `Content-Disposition`).
+34. **Script de Testes E2E Autônomo e Offline:** Como o ambiente local offline pode apresentar restrições para instalar o `pytest` via rede no PyPI, criamos os scripts [run_e2e_tests.py](file:///y:/Nazaro/codeba-dashboard-main/scratch/run_e2e_tests.py) (testes E2E com `requests`) e [run_all_tests.py](file:///y:/Nazaro/codeba-dashboard-main/scratch/run_all_tests.py) (testes unitários e de integração mockados) que executam testes reais locais contra a porta do servidor, garantindo a integridade dos fluxos.
+
+---
+
 ## Próximos passos sugeridos (não implementados)
 
 - Export CSV com resumo de tonelagem
 - Autenticação e rate limiting (nota em `config.py`)
 - Filtro de data no backend (`filter_date` já existe em `reconcile_data`, não exposto na API)
 - Agrupamento mensal configurável pelo usuário
+
+---
+
+### v3.4.0 (Correções de Horários, Suporte a Tela 7714 e Guia de Usuário / FAQ)
+
+35. **Preservação de Horários em Erros de Placa:** A comparação no algoritmo de match de typos (`post_processing.py`) foi ajustada para ignorar a hora no momento da comparação de datas e usar a data/hora exata do PDF no registro gerado. Isso resolveu o problema de relatórios gerados sem o horário dos caminhões.
+36. **Correção de Chaves Duplicadas no Pandas (Tela 7714):** Refatorado o mapeamento de colunas em `pdf_parser.py` para construir um DataFrame contendo apenas as colunas desejadas de forma unívoca, sanando o erro `ValueError: cannot assemble with duplicate keys` ao ler arquivos exportados pela Tela 7714 do OpenPort.
+37. **SEV nas Pesagens Aprovadas (OK):** Adicionada a coluna `SEV` na visualização das pesagens aprovadas no frontend (`static/index.html` e `static/js/app.js`), mantendo a uniformidade com o relatório PDF.
+38. **Guia de Ajuda e FAQ no Dashboard:** Implementado o botão "Guia / FAQ" e o painel drawer lateral retrátil explicativo no frontend com suporte a temas Claro/Escuro.
+
+### v3.4.1 (Ajustes de UX, Refatoração "SEV" e Parsing de Milhares)
+
+39. **Substituição do Campo "Cliente" por "SEV":** Para simplificar o agrupamento e tornar a auditoria mais direta, todo o rastreamento da coluna "Cliente" (e as heurísticas de extração dele pelo nome do arquivo Excel) foi removido do backend e do frontend. Em seu lugar, introduzimos a "SEV", que é a ID do romaneio e já vem nativamente do OpenPort, passando a ser a referência oficial no lugar do cliente nos PDFs de exportação e planilhas CSV.
+40. **Parsing Inteligente de Milhares em Pesos PDF:** Correção no `cleaners.py` (`safe_to_numeric`) para interpretar corretamente pesos do OpenPort (tela 7714) que formatavam milhares com um único ponto (ex: `57.840` kg). O sistema agora distingue de forma inteligente entre um separador decimal e um separador de milhares com base na presença de exatamente 3 casas pós-ponto (ex: `57.840`), evitando que pesagens de 57 mil quilos sejam lidas como 57 quilos e zerando divergências falsas-positivas ("Diferença de Peso").
+41. **Default para Tela 7714:** Atualização das chamadas textuais da interface e do script robô de automação RPA (`rpa_codeba.py`) para solicitar e baixar explicitamente o relatório da **Tela 7714** do sistema OpenPort, firmando-a como novo padrão ouro operacional.

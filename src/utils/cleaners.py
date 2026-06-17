@@ -31,6 +31,11 @@ def safe_to_numeric(val):
         if val_str.count('.') > 1:
             # Múltiplos pontos = milhares (ex: 1.000.000). Removemos.
             val_str = val_str.replace('.', '')
+        elif val_str.count('.') == 1:
+            # Se tem exatamente um ponto e 3 casas após ele, assumir que é milhar (ex: '57.840')
+            parts = val_str.split('.')
+            if len(parts[1]) == 3:
+                val_str = val_str.replace('.', '')
             
     try:
         return float(val_str)

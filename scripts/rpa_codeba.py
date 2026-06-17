@@ -20,16 +20,16 @@ def run_rpa(data_inicio, data_fim, download_dir):
             page.wait_for_timeout(500) # Pausa rápida antes de clicar
             page.locator("xpath=/html/body/div/div[2]/form/div[4]/div[2]/div/button").click()
 
-            print("3. Pesquisando pela tela 7015...")
+            print("3. Pesquisando pela tela 7714...")
             # Digitar na barra de pesquisa tecla por tecla
-            page.locator("xpath=/html/body/div/div[1]/div/div[3]/form/div/span[1]/input[2]").press_sequentially("7015", delay=150)
+            page.locator("xpath=/html/body/div/div[1]/div/div[3]/form/div/span[1]/input[2]").press_sequentially("7714", delay=150)
             # Clicar na Lupa
             page.locator("xpath=/html/body/div/div[1]/div/div[3]/form/div/span[2]/button/i").click()
             
             # Pausa rápida para a tela/menu carregar
             page.wait_for_timeout(2000)
             
-            # Clicar na opção 7015 listada
+            # Clicar na opção 7714 listada
             page.locator("xpath=/html/body/div[3]/form/fieldset/div[2]/ul/li/div/label").click()
 
             print(f"4. Preenchendo período: {data_inicio} até {data_fim}")
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     # OU oferece uma opção rápida de "Mês Atual", perfeita para o dia-a-dia.
     
     print("="*40)
-    print("RPA CODEBA - EXTRAÇÃO RELATÓRIO 7015")
+    print("RPA CODEBA - EXTRAÇÃO RELATÓRIO 7714")
     print("="*40)
     
     resposta = input("Deseja rodar com as datas do MÊS ATUAL? (S/N): ").strip().upper()

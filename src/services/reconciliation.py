@@ -9,6 +9,58 @@ from src.services.post_processing import detect_plate_typos, infer_product_from_
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_PR_MAP = {
+    'LITIO': '11049',
+    'LÍTIO': '11049',
+    'ÓXIDO DE MAGNÉSIO': '11050',
+    'OXIDO DE MAGNESIO': '11050',
+    'NÍQUEL': '11048',
+    'NÍQUEL- ATLANTIC NICKEL': '11048',
+    'ATLANTIC NICKEL': '11048',
+    'NIQUEL': '11048',
+    'MANGANÊS': '11047',
+    'MANGANES': '11047',
+    'MILHO': '11046'
+}
+
+def get_pr_and_motivacao(item, produto):
+    # Determine PR
+    pr = item.get('PR')
+    if not pr:
+        sev = item.get('SEV')
+        if sev:
+            pr = str(sev)
+    if not pr and produto:
+        prod_upper = str(produto).upper().strip()
+        for key, val in DEFAULT_PR_MAP.items():
+            if key in prod_upper:
+                pr = val
+                break
+    if not pr:
+        pr = '11050'
+        
+    # Determine Motivação
+    motivacao = 'EGS'
+    return pr, motivacao
+
+def format_datetime_str(dt_val):
+    if pd.isna(dt_val) or dt_val is None:
+        return ""
+    try:
+        dt = pd.to_datetime(dt_val)
+        # Se for exatamente meia-noite (sem hora gravada ou importado de forma simples)
+        if dt.time() == pd.Timestamp('2020-01-01 00:00:00').time():
+            return dt.strftime('%d/%m/%Y')
+        else:
+            return dt.strftime('%d/%m/%Y %H:%M')
+    except Exception:
+        return str(dt_val)
+
+def clean_sev(sev_val):
+    if not sev_val or str(sev_val).startswith('TEMP_SEV_') or str(sev_val).lower() == 'nan':
+        return ""
+    return str(sev_val).strip()
+
 def match_trips(ex_list, p_list):
     """
     Realiza o Match Bipartido Inteligente para lidar com múltiplas viagens da mesma placa no mesmo dia.
@@ -30,17 +82,21 @@ def match_trips(ex_list, p_list):
                 best_p_idx = j
                 break
         if best_p_idx != -1:
+            p = p_list[best_p_idx]
             matched_ex.add(i)
             matched_p.add(best_p_idx)
             peso_liquido = ex['Peso Bruto'] - ex['Tara']
+            pr, motiv = get_pr_and_motivacao(p if p else ex, ex.get('Produto'))
             ok_list.append({
                 'Placa': ex['Placa'],
-                'Data': ex['Data_Merge'],
+                'Data': format_datetime_str(p.get('Data') or ex.get('Data')),
                 'Peso Bruto': ex['Peso Bruto'],
                 'Tara': ex['Tara'],
                 'Peso Liquido': peso_liquido,
                 'Produto': ex.get('Produto', ''),
-                'Cliente': ex.get('Cliente', ''),
+                'PR': pr,
+                'Motivacao': motiv,
+                'SEV': clean_sev(p.get('SEV')) if p else '',
                 'Detalhe': 'Pesagem exata'
             })
             
@@ -60,7 +116,6 @@ def match_trips(ex_list, p_list):
                 best_p_idx = j
         
         prod_ex = ex.get('Produto', 'Desconhecido')
-        cliente_ex = ex.get('Cliente', '')
         
         # Se houver um par disponível, nós vinculamos e apontamos a diferença exata.
         if best_p_idx != -1:
@@ -68,42 +123,51 @@ def match_trips(ex_list, p_list):
             prod_p = p.get('Tipo Carga', 'Desconhecido')
             matched_ex.add(i)
             matched_p.add(best_p_idx)
+            pr, motiv = get_pr_and_motivacao(p, prod_ex)
             divergencias.append({
                 'Placa': ex['Placa'],
-                'Data': ex['Data_Merge'],
+                'Data': format_datetime_str(p.get('Data') or ex.get('Data')),
                 'Status': 'Diferença de Peso',
                 'Detalhe': f"[Planilha: {prod_ex}] Bruto {ex['Peso Bruto']} / Tara {ex['Tara']} != [PDF: {prod_p}] Bruto {p['Peso Bruto']} / Tara {p['Tara']}",
                 'Produto': prod_ex,
-                'Cliente': cliente_ex,
                 'Peso Bruto': ex['Peso Bruto'],
-                'Tara': ex['Tara']
+                'Tara': ex['Tara'],
+                'PR': pr,
+                'Motivacao': motiv,
+                'SEV': clean_sev(p.get('SEV'))
             })
         else:
             # Se não sobrou nenhum PDF para fazer par
+            pr, motiv = get_pr_and_motivacao(ex, prod_ex)
             divergencias.append({
                 'Placa': ex['Placa'],
-                'Data': ex['Data_Merge'],
+                'Data': format_datetime_str(ex.get('Data')),
                 'Status': 'Falta no PDF',
                 'Detalhe': f"[Planilha: {prod_ex}] Excel acusa Bruto {ex['Peso Bruto']}kg / Tara {ex['Tara']}kg, mas não há viagem correspondente no PDF.",
                 'Produto': prod_ex,
-                'Cliente': cliente_ex,
                 'Peso Bruto': ex['Peso Bruto'],
-                'Tara': ex['Tara']
+                'Tara': ex['Tara'],
+                'PR': pr,
+                'Motivacao': motiv,
+                'SEV': ''
             })
             
     # 3. O que sobrou no PDF sem registro no Excel
     for j, p in enumerate(p_list):
         if j not in matched_p:
             prod_p = p.get('Tipo Carga', 'Desconhecido')
+            pr, motiv = get_pr_and_motivacao(p, '')
             divergencias.append({
                 'Placa': p['Placa'],
-                'Data': p['Data_Merge'],
+                'Data': format_datetime_str(p.get('Data')),
                 'Status': 'Falta no Excel',
                 'Detalhe': f"[PDF: {prod_p}] OpenPort acusa Bruto {p['Peso Bruto']}kg / Tara {p['Tara']}kg. Não há registro no Excel.",
                 'Produto': '',
-                'Cliente': '',
                 'Peso Bruto': p['Peso Bruto'],
-                'Tara': p['Tara']
+                'Tara': p['Tara'],
+                'PR': pr,
+                'Motivacao': motiv,
+                'SEV': clean_sev(p.get('SEV'))
             })
             
     return ok_list, divergencias
@@ -113,9 +177,13 @@ def _sort_br_dates(dates: list[str]) -> list[str]:
     """Ordena datas no formato DD/MM/YYYY."""
 
     def sort_key(d: str) -> tuple[int, int, int]:
-        parts = d.split("/")
+        date_part = d.split(" ")[0]
+        parts = date_part.split("/")
         if len(parts) == 3:
-            return int(parts[2]), int(parts[1]), int(parts[0])
+            try:
+                return int(parts[2]), int(parts[1]), int(parts[0])
+            except ValueError:
+                pass
         return 0, 0, 0
 
     return sorted(set(dates), key=sort_key)
@@ -148,7 +216,7 @@ def reconcile_data(df_excel, df_pdf, filter_date=None):
                 if col in df_ex.columns:
                     df_ex[col] = df_ex[col].apply(lambda x: x * 1000 if isinstance(x, (int, float)) and 0 < x < 200 else x)
         else:
-            df_ex = pd.DataFrame(columns=['Placa', 'Data_Merge', 'Peso Bruto', 'Tara', 'Produto', 'Cliente'])
+            df_ex = pd.DataFrame(columns=['Placa', 'Data_Merge', 'Peso Bruto', 'Tara', 'Produto'])
 
         # Preparar PDF
         if not df_pdf.empty:
@@ -270,31 +338,22 @@ def reconcile_data(df_excel, df_pdf, filter_date=None):
         # Ordenação Cronológica Real
         def sort_key(item):
             try:
-                return pd.to_datetime(item['Data'], format='%d/%m/%Y')
+                return pd.to_datetime(item['Data'], dayfirst=True)
             except Exception:
                 return pd.Timestamp.min
 
         divergencias.sort(key=sort_key)
         ok_list.sort(key=sort_key)
 
-        # Coletar metadados de produtos e clientes para o frontend
+        # Coletar metadados de produtos para o frontend
         all_produtos = set()
-        clientes_por_produto = {}
         for item in ok_list + divergencias:
             prod = item.get('Produto', '')
-            cliente = item.get('Cliente', '')
             # Limpar sufixos de dedução para agrupamento
             prod_clean = prod.replace(' (Deduzido)', '') if prod else ''
             if prod_clean and prod_clean not in ('Não Identificado', '') and not prod_clean.startswith('Ambíguo'):
                 all_produtos.add(prod_clean)
-                if cliente:
-                    if prod_clean not in clientes_por_produto:
-                        clientes_por_produto[prod_clean] = set()
-                    clientes_por_produto[prod_clean].add(cliente)
         
-        # Converter sets para listas para serialização JSON
-        clientes_dict = {k: sorted(list(v)) for k, v in clientes_por_produto.items()}
-
         from src.services.analytics import build_volume_records
 
         result = {
@@ -306,7 +365,6 @@ def reconcile_data(df_excel, df_pdf, filter_date=None):
             "divergencias": divergencias,
             "ok": ok_list,
             "produtos_detectados": sorted(list(all_produtos)),
-            "clientes_por_produto": clientes_dict,
             "volume": build_volume_records(ok_list, divergencias),
         }
         if recorte_aviso:

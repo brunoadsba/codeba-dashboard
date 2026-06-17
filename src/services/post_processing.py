@@ -1,8 +1,22 @@
-def plate_char_diff(placa1, placa2):
-    """Conta diferenças caractere a caractere entre duas placas de mesmo tamanho."""
-    if len(placa1) != len(placa2):
-        return max(len(placa1), len(placa2))
-    return sum(c1 != c2 for c1, c2 in zip(placa1, placa2))
+def levenshtein_distance(s1, s2):
+    """Calcula a distância de Levenshtein entre duas strings (suporta inserção, deleção e substituição)."""
+    if len(s1) < len(s2):
+        return levenshtein_distance(s2, s1)
+
+    if len(s2) == 0:
+        return len(s1)
+
+    previous_row = range(len(s2) + 1)
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+
+    return previous_row[-1]
 
 
 def detect_plate_typos(divergencias):
@@ -21,11 +35,12 @@ def detect_plate_typos(divergencias):
         for i_fe, fe in falta_excel:
             if i_fe in used_excel:
                 continue
-            if fp['Data'] != fe['Data']:
+            # Comparar apenas a data (desprezando hora)
+            if fp['Data'].split(' ')[0] != fe['Data'].split(' ')[0]:
                 continue
             # Comparar pesos
             if abs(fp['Peso Bruto'] - fe['Peso Bruto']) < 0.1 and abs(fp['Tara'] - fe['Tara']) < 0.1:
-                dist = plate_char_diff(fp['Placa'], fe['Placa'])
+                dist = levenshtein_distance(fp['Placa'], fe['Placa'])
                 if 1 <= dist <= 2:
                     used_excel.add(i_fe)
                     indices_to_remove.add(i_fp)
@@ -34,13 +49,16 @@ def detect_plate_typos(divergencias):
                         'Placa': fp['Placa'],
                         'Placa_Excel': fp['Placa'],
                         'Placa_PDF': fe['Placa'],
-                        'Data': fp['Data'],
+                        'Data': fe['Data'],  # Utiliza a data/hora exata do PDF
                         'Status': 'Erro de Placa',
                         'Detalhe': f"Placa digitada '{fp['Placa']}' no Excel, mas registrada como '{fe['Placa']}' no OpenPort. Pesos idênticos: Bruto {fp['Peso Bruto']}kg / Tara {fp['Tara']}kg.",
                         'Produto': fp.get('Produto', ''),
                         'Cliente': fp.get('Cliente', ''),
                         'Peso Bruto': fp['Peso Bruto'],
-                        'Tara': fp['Tara']
+                        'Tara': fp['Tara'],
+                        'PR': fp.get('PR', '') or fe.get('PR', ''),
+                        'Motivacao': fp.get('Motivacao', '') or fe.get('Motivacao', ''),
+                        'SEV': fe.get('SEV', '')
                     })
                     break
     
