@@ -1,110 +1,151 @@
-# CODEBA — Dashboard de Auditoria de Pesagens (v3.0.0)
+# CODEBA — Dashboard de Auditoria de Pesagens (v4.0.0)
 
-Este projeto realiza a **conciliação e auditoria de pesagens rodoviárias** comparando os manifestos da CODEBA (origem Excel) com os registros do OpenPort (saída PDF). Ele identifica automaticamente divergências de peso, placas digitadas incorretamente no Excel e deduce o produto com base no histórico do caminhão.
+Este projeto realiza a **conciliação e auditoria de pesagens rodoviárias** comparando as planilhas da CODEBA (origem Excel, digitação manual do balanceiro) com os registros do OpenPort (PDF, pesagem automática). Ele identifica automaticamente divergências de peso, placas digitadas incorretamente no Excel, deduz o produto com base no histórico do caminhão e gera relatórios analíticos com gráficos de volume.
 
 ---
 
-## 🏗️ Estrutura do Projeto
+## Funcionalidades
 
-O projeto foi reorganizado seguindo boas práticas da indústria, como **Clean Architecture**, **12-Factor App** e **Separation of Concerns**:
+- **Upload multi-arquivo:** Arraste planilhas `.xlsx` + relatório OpenPort `.pdf` de uma vez
+- **Conciliação automática:** cruza pesagens do Excel com o PDF, aponta OK vs divergências
+- **Desduplicação inteligente:** remove registros duplicados do OpenPort antes da análise
+- **Analytics dinâmico:** gráficos de barras empilhadas (toneladas por produto/data), donut de distribuição e KPIs
+- **Filtros reativos:** período (Flatpickr com presets), placa (debounce), produto, toggle auditado/total
+- **Agrupamento semanal:** para períodos > 90 dias, eixo X agrupa por semana
+- **Histórico persistente:** cada auditoria salva em SQLite, consultável e recarregável
+- **Relatório PDF:** download com filtros ativos aplicados
+- **Temas Claro/Escuro** com identidade visual CODEBA
+- **Suporte a Tela 7714** do OpenPort (novo formato de relatório)
+
+---
+
+## Estrutura do Projeto
 
 ```
 operacao/
-├── pyproject.toml              # Metadados do projeto e configurações de ferramentas (PEP 518)
-├── .gitignore                  # Regras de exclusão do Git
-├── .env.example                # Configurações de ambiente (12-Factor App)
-├── README.md                   # Esta documentação
-├── requirements.txt            # Dependências em formato legacy para compatibilidade
+├── pyproject.toml              # Metadados e config de ferramentas (PEP 518)
+├── .gitignore
+├── .env.example                # Config de ambiente (12-Factor App)
+├── requirements.txt            # Dependências legacy
+├── README.md
 │
-├── src/                        # Código-fonte principal da aplicação
-│   ├── __init__.py
-│   ├── app.py                  # Servidor FastAPI (Rotas e Middleware)
-│   ├── config.py               # Constantes e caminhos de forma portátil e segura
-│   ├── logging_config.py       # Configuração única e unificada de logs (dictConfig)
+├── src/                        # Código-fonte principal
+│   ├── app.py                  # FastAPI: rotas, upload, histórico, lifespan SQLite
+│   ├── config.py               # Paths, limites de upload
+│   ├── logging_config.py       # Logs centralizados
 │   │
-│   ├── services/               # Lógica de negócio e processamento de dados (ETL)
-│   │   ├── __init__.py
-│   │   ├── excel_parser.py     # Parser inteligente de planilhas com Header Hunting
-│   │   ├── pdf_parser.py       # Parser de relatórios do OpenPort em PDF
-│   │   ├── reconciliation.py   # Motor principal de reconciliação de viagens
-│   │   └── post_processing.py  # Corretores de placas e dedução de produtos
+│   ├── services/
+│   │   ├── excel_parser.py     # Header Hunting nas primeiras 20 linhas
+│   │   ├── pdf_parser.py       # Extração PDF + desduplicação de pesagens
+│   │   ├── reconciliation.py   # Motor de conciliação + volume no resultado
+│   │   ├── post_processing.py  # Erros de placa + dedução de produto por histórico
+│   │   ├── analytics.py        # build_volume_records() — toneladas por viagem
+│   │   ├── persistence.py      # SQLite: CRUD de audit_runs
+│   │   └── report_generator.py # Geração de relatório PDF com reportlab
 │   │
-│   └── utils/                  # Utilitários puros
-│       ├── __init__.py
-│       ├── cleaners.py         # Limpeza e sanitização de placas e números
-│       └── filename_parser.py  # Extração de dados com base nos nomes de arquivos
+│   └── utils/
+│       ├── cleaners.py         # Limpeza de placas, decimais BR (safe_to_numeric)
+│       ├── filename_parser.py  # Extração de produto/cliente do nome do arquivo
+│       └── file_utils.py       # Cleanup de arquivos temporários com retry (Windows)
 │
-├── static/                     # Frontend (HTML, CSS e JavaScript puro)
+├── static/                     # Frontend (HTML, CSS, JS puro)
 │   ├── index.html
-│   ├── css/style.css
-│   └── js/app.js
+│   ├── bg-ilheus.png           # Background image (foto aérea do Porto)
+│   ├── css/
+│   │   ├── style.css           # Design system CODEBA
+│   │   └── responsive.css      # Breakpoints mobile/tablet
+│   └── js/
+│       ├── app.js              # Orquestração, upload, KPIs, tabelas
+│       ├── analytics.js        # filterState, applyFilters(), aggregateVolume()
+│       ├── charts.js           # Wrappers Chart.js (barras empilhadas + donut)
+│       └── history.js          # Painel de histórico, fetch /api/runs
 │
-├── data/                       # Arquivos de dados de referência
-│   ├── excel/                  # Planilhas da CODEBA por produto
-│   └── relatorios/             # PDFs de pesagem do OpenPort
+├── data/                       # Dados de referência (gitignored)
+│   └── auditoria.db            # SQLite — gerado em runtime
 │
-├── tests/                      # Suite de testes automatizados
-│   ├── __init__.py
-│   ├── conftest.py             # Fixtures globais do pytest
-│   └── test_e2e.py             # Testes integrados de ponta a ponta
+├── tests/
+│   ├── conftest.py             # Fixture TestClient com lifespan
+│   ├── test_e2e.py             # Upload completo, frontend, API histórico
+│   ├── test_analytics.py       # Normalização produto, volume, período
+│   ├── test_persistence.py     # CRUD do SQLite
+│   ├── test_report.py          # Geração de relatório PDF
+│   └── test_deduplication.py   # Desduplicação de pesagens
 │
-├── scripts/                    # Scripts auxiliares e automações
-│   ├── rpa_codeba.py           # Robô RPA de download automático
-│   └── diagnostics/            # Scripts de diagnóstico e debug
+├── scratch/                    # Scripts de teste standalone (offline)
+│   ├── run_e2e_tests.py
+│   └── run_all_tests.py
 │
-├── logs/                       # Arquivos de log de execução
-└── temp_uploads/               # Diretório temporário para processamento de uploads
+├── scripts/
+│   └── rpa_codeba.py           # Robô RPA (Playwright) para download do relatório
+│
+├── docs/
+│   ├── memory.md               # Memória do projeto (histórico de decisões)
+│   ├── guia.md                 # Guia do usuário
+│   ├── automacao.md            # Roteiro do RPA
+│   ├── dados-openport.md       # Contexto dos dados OpenPort
+│   └── ideia.md                # Concepção original
+│
+├── logs/                       # Logs de execução
+└── temp_uploads/               # Arquivos temporários de upload
 ```
 
 ---
 
-## 🚀 Como Executar
+## Como Executar
 
 ### 1. Preparar o Ambiente
 
-Certifique-se de ter o Python 3.10+ instalado. No diretório `operacao/`:
+Python 3.10+.
 
-1. Crie o ambiente virtual:
-   ```bash
-   python -m venv .venv
-   ```
-2. Ative o ambiente virtual:
-   * **Windows:** `.\.venv\Scripts\activate`
-   * **Linux/Mac:** `source .venv/bin/activate`
-3. Instale as dependências:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Crie o arquivo `.env` com base no `.env.example`:
-   ```bash
-   copy .env.example .env
-   ```
+```bash
+python -m venv .venv
+.venv\Scripts\activate      # Windows
+# source .venv/bin/activate  # Linux/Mac
+pip install -r requirements.txt
+copy .env.example .env       # Windows
+```
+
+Edite `.env` se necessário (OPENPORT_USER, OPENPORT_PASS para o RPA).
 
 ### 2. Iniciar o Servidor
-
-Execute o servidor localmente por meio do módulo Uvicorn:
 
 ```bash
 python -m uvicorn src.app:app --reload --port 8000
 ```
 
-O painel estará disponível em [http://localhost:8000](http://localhost:8000).
+Acesse **http://localhost:8000**
 
 ---
 
-## 🧪 Rodando os Testes
-
-O projeto utiliza o **Pytest** para testes integrados. Para rodar a suite de testes inteira:
+## Testes
 
 ```bash
 python -m pytest tests/ -v
 ```
 
+23 testes cobrindo upload E2E, analytics, persistência, relatório PDF e desduplicação.
+
 ---
 
-## 🛡️ Segurança
+## Variáveis de Ambiente (`.env`)
 
-* **Prevenção de Path Traversal:** Os arquivos enviados por upload são salvos temporariamente sob nomes gerados por `uuid.uuid4()`.
-* **Sanitização contra XSS:** O frontend renderiza todos os dados dinâmicos construindo nós nativos do DOM com `.textContent` e `.appendChild`, evitando o uso perigoso de `innerHTML`.
-* **Validação de Tamanho e Extensões:** O backend rejeita arquivos maiores que 50MB ou com extensões que não estejam na allow-list (`.xlsx`, `.xls`, `.pdf`).
-* **Tratamento de Arquivos Locais:** Limpeza sistemática dos arquivos temporários após o processamento, incluindo tratamento específico para locks de arquivo no sistema de arquivos do Windows.
+| Variável | Default | Descrição |
+|----------|---------|-----------|
+| `HOST` | `127.0.0.1` | Host do servidor |
+| `PORT` | `8000` | Porta |
+| `DATABASE_PATH` | `data/auditoria.db` | Banco SQLite |
+| `UPLOAD_DIR` | `temp_uploads` | Uploads temporários |
+| `MAX_FILE_SIZE_MB` | `50` | Limite por arquivo |
+| `OPENPORT_USER` | — | CPF do operador (RPA) |
+| `OPENPORT_PASS` | — | Senha do operador (RPA) |
+| `RPA_DOWNLOAD_DIR` | — | Diretório de download do RPA |
+
+---
+
+## Segurança
+
+- **Path Traversal:** uploads salvos com nome `uuid4()`
+- **XSS:** renderização via `.textContent`/`.appendChild`, sem `innerHTML`
+- **Validação:** rejeita arquivos > 50 MB ou extensões fora da allow-list (`.xlsx`, `.xls`, `.pdf`)
+- **Cleanup:** remoção sistemática com retry progressivo (5×) para lidar com locks do Windows
+- **Credenciais:** credenciais do OpenPort lidas de variáveis de ambiente, nunca hardcoded

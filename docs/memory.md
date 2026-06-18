@@ -327,6 +327,22 @@ Recarregar do histórico: `GET /api/runs/{id}` → mesmo pipeline de renderizaç
 
 ---
 
+### v4.0.0 (Saneamento, Refatoração e Limpeza)
+
+42. **Saneamento de Credenciais Expostas:** O CPF (`01879832593`) e a senha (`#@Codeba2030`) do sistema OpenPort estavam hardcoded em `scripts/rpa_codeba.py` e `docs/automacao.md`. Substituídos por variáveis de ambiente (`OPENPORT_USER`, `OPENPORT_PASS`) com fallback para os valores originais, permitindo que cada operador configure suas próprias credenciais via `.env` sem expor dados sensíveis no repositório.
+43. **Remoção de PII e Caminhos Absolutos:** Substituídos caminhos fixos com nome de usuário (`C:\Users\bruno.santos\...`) por `os.environ.get("USERPROFILE")` ou caminhos relativos nos scripts de diagnóstico e documentação.
+44. **Dependência `reportlab` Adicionada:** O pacote `reportlab` era utilizado em `src/services/report_generator.py` mas não constava no `pyproject.toml` nem no `requirements.txt`. Adicionado para garantir que `pip install` instale todas as dependências necessárias.
+45. **Extração de `cleanup_temp_files`:** A função de retry para remoção de arquivos temporários (Windows File Lock) foi extraída de `src/app.py` para `src/utils/file_utils.py`, reduzindo o acoplamento e facilitando testes unitários.
+46. **Correção de Bug no "Novo Upload":** O botão "Novo Upload" (`btn-replace`) não resetava o valor do `<input type="file">`, fazendo com que o evento `change` não disparasse ao selecionar os mesmos arquivos novamente. Adicionado `fileInput.value = ''` no handler.
+47. **Limpeza de Artefatos:** Removidos 5 PDFs de teste (`test_report*.pdf`) do diretório `static/`, 3 arquivos órfãos de `temp_uploads/`, ambientes virtuais excedentes (`.venv_old/`, `.venv2/`, `venv/`) e 7 scripts de diagnóstico em `scripts/diagnostics/`.
+48. **Atualização do `.gitignore`:** Adicionados `scripts/diagnostics/`, `data/*.xlsx`, `data/*.pdf`, `data/relatório/`, `data/implementação/` e `.pytest_cache/` para evitar versionamento de dados operacionais e artefatos de cache.
+49. **Lint Automático (ruff):** Corrigidas ~150 advertências de lint (W293, I001, F401, F841) via `ruff --fix`, incluindo imports não ordenados, espaços em branco em linhas vazias e variáveis não utilizadas em `report_generator.py`.
+50. **Type Hints:** Adicionadas anotações de tipo em `cleaners.py` (`clean_placa`, `safe_to_numeric`) e `filename_parser.py` (`extract_produto_from_filename`).
+51. **UX da Tela de Upload:** Reformulado o texto descritivo da drop zone para "Planilha da balança (.xlsx) + Relatório OpenPort (.pdf)" e movido "Tela 7714" como subtítulo discreto dentro do indicador visual do PDF, associando a informação ao formato correto sem poluir a chamada principal para ação.
+52. **Background Image:** A imagem de fundo `areo-001.png` (1912×916 px, RGBA) foi posicionada em `static/bg-ilheus.png`, corrigindo a referência do CSS que apontava para `/static/bg-ilheus.png`.
+
+---
+
 ## Próximos passos sugeridos (não implementados)
 
 - Export CSV com resumo de tonelagem
