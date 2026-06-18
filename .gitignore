@@ -41,8 +41,17 @@ data/*.db
 # Cache do pytest
 .pytest_cache/
 
+# Linter
+.ruff_cache/
+
+# Build artifacts
+*.egg-info/
+
 # Artefatos de diagnóstico
 analysis_results.json
+
+# Notas pessoais do projeto
+ATENÇÃO - ABRIR ANTES DE RODAR O PROGRAMA/
 
 # Scripts locais de desenvolvimento e diagnóstico
 scripts/diagnostics/

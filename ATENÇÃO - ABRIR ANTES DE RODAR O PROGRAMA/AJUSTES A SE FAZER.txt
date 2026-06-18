@@ -1,9 +1,0 @@
-O programa não está gerando o PDF com todos os horários dos caminhões, checar isso
-
-Testar relatório com tela 7714
-
-Inserir a SEV no relatório como coluna nova
-
-No gráfico, inserir um filtro de dias para reduzir a bagunça que está
-
-Implementar um guia do usuário/FAQ
