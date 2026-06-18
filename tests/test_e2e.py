@@ -1,10 +1,11 @@
 import os
-from pathlib import Path
+
+
 def test_upload_completo(client, excel_dir, pdf_path):
     """TESTE 1: Upload completo (todas as planilhas + PDF curto)"""
     files = []
     opened_files = []
-    
+
     try:
         # Adicionar todos os Excels
         excel_files = [f for f in os.listdir(excel_dir) if f.endswith('.xlsx')]
@@ -13,18 +14,18 @@ def test_upload_completo(client, excel_dir, pdf_path):
             opened = open(fp, 'rb')
             opened_files.append(opened)
             files.append(('files', (f, opened, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')))
-        
+
         # Adicionar o PDF
         pdf_opened = open(pdf_path, 'rb')
         opened_files.append(pdf_opened)
         files.append(('files', (pdf_path.name, pdf_opened, 'application/pdf')))
-        
+
         # Enviar request
         response = client.post("/api/upload", files=files)
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert 'error' not in data
         assert 'resumo' in data
         assert 'ok' in data
@@ -48,41 +49,41 @@ def test_upload_completo(client, excel_dir, pdf_path):
         div_list = data['divergencias']
         produtos = data['produtos_detectados']
         clientes = data['clientes_por_produto']
-        
+
         assert resumo.get('ok', 0) > 0
         assert resumo.get('total_processado', 0) == len(ok_list) + len(div_list)
-        
+
         assert len(produtos) >= 2
         assert any('LITIO' in p.upper() for p in produtos)
-        
+
         assert len(clientes) >= 1
-        
+
         # Validar registros OK
         if len(ok_list) > 0:
             sample = ok_list[0]
             required_fields = ['Placa', 'Data', 'Peso Bruto', 'Tara', 'Peso Liquido', 'Produto', 'Cliente']
             for field in required_fields:
                 assert field in sample
-                
+
             for item in ok_list:
                 expected_pl = item['Peso Bruto'] - item['Tara']
                 assert abs(item.get('Peso Liquido', 0) - expected_pl) < 0.1
                 assert item.get('Produto') != ""
-                
+
         # Validar divergências
         if len(div_list) > 0:
             sample_div = div_list[0]
             div_fields = ['Placa', 'Data', 'Status', 'Detalhe', 'Produto']
             for field in div_fields:
                 assert field in sample_div
-                
+
         # Validar Erros de Placa
         typos = [d for d in div_list if d.get('Status') == 'Erro de Placa']
         for t in typos:
             assert 'Placa_Excel' in t
             assert 'Placa_PDF' in t
             assert t.get('Placa_Excel') != t.get('Placa_PDF')
-            
+
         # Validar Dedução de Produto
         inferred = [d for d in div_list if '(Deduzido)' in d.get('Produto', '')]
         not_id = [d for d in div_list if d.get('Produto') == 'Não Identificado']
@@ -115,19 +116,19 @@ def test_upload_so_pdf(client, pdf_path):
         pdf_opened = open(pdf_path, 'rb')
         opened_files.append(pdf_opened)
         files = [('files', (pdf_path.name, pdf_opened, 'application/pdf'))]
-        
+
         response = client.post("/api/upload", files=files)
         assert response.status_code == 200
-        
+
         data = response.json()
         resumo = data.get('resumo', {})
         assert resumo.get('ok', 0) == 0
         assert resumo.get('divergencias', 0) > 0
-        
+
         divs = data.get('divergencias', [])
         falta_excel = [d for d in divs if d.get('Status') == 'Falta no Excel']
         assert len(falta_excel) == len(divs)
-        
+
     finally:
         for opened in opened_files:
             opened.close()

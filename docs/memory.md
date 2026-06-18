@@ -289,7 +289,7 @@ Recarregar do histórico: `GET /api/runs/{id}` → mesmo pipeline de renderizaç
 15. **Gráficos e tema:** Chart.js recriado ao alternar dark/light; `resizeCharts()` ao abrir/fechar drawer de histórico.
 16. **Períodos longos:** agrupamento por semana quando range > 90 dias para legibilidade do eixo X.
 17. **Painel de conformidade compacto:** anel de confiabilidade + chips por produto em faixa única; tipografia ampliada para legibilidade.
-18. **Repositório remoto:** [github.com/brunoadsba/codeba-dashboard](https://github.com/brunoadsba/codeba-dashboard.git)
+18. **Repositório remoto:** (configurado via git remote)
 
 ### v3.2.0 (Identidade Visual)
 

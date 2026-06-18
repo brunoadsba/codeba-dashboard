@@ -4,8 +4,8 @@ https://openportilheus.codeba.gov.br/openportcodeba/
 
 
 
-usuário:01879832593 /html/body/div/div[2]/form/div[1]/div/input
-senha:#@Codeba2030 /html/body/div/div[2]/form/div[2]/div/input
+usuário:${OPENPORT_USER} /html/body/div/div[2]/form/div[1]/div/input
+senha:${OPENPORT_PASS} /html/body/div/div[2]/form/div[2]/div/input
 
 entrar /html/body/div/div[2]/form/div[4]/div[2]/div/button
 
@@ -31,7 +31,7 @@ imprimir: /html/body/div[3]/div[1]/button[5]
 
 dê um 'control + P' para imprimir o arquivo e salvar em PDF
 
-caminho para salvar o arquivo em PDF: C:\Users\bruno.santos\Downloads\Projetos
+caminho para salvar o arquivo em PDF: ${RPA_DOWNLOAD_DIR}
 
 Nomear cada arquivo por data do fuso horário do Brasil com o período selecionado.
 

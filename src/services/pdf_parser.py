@@ -1,5 +1,6 @@
 import logging
 import traceback
+
 import pandas as pd
 import pdfplumber
 
@@ -56,7 +57,7 @@ def process_pdf_file(file_path):
                 table = page.extract_table()
                 if not table or len(table) < 2:
                     continue
-                
+
                 # Header Hunting dinâmico nas primeiras 10 linhas
                 header_idx = None
                 for idx, row in enumerate(table[:10]):
@@ -66,17 +67,17 @@ def process_pdf_file(file_path):
                     non_empty_cells = sum(1 for cell in row if cell and str(cell).strip() != '')
                     if non_empty_cells < 4:
                         continue
-                        
+
                     row_str = ' '.join([str(cell).upper() for cell in row if cell])
                     # Procura por Placa e outras chaves comuns
                     if 'PLACA' in row_str and ('PESO' in row_str or 'DATA' in row_str or 'SEV' in row_str):
                         header_idx = idx
                         break
-                
+
                 if header_idx is None:
                     logger.warning(f"Cabeçalho de pesagem não encontrado no PDF (Pág {page_num})")
                     continue
-                
+
                 headers = table[header_idx]
                 unique_headers = []
                 for i, h in enumerate(headers):
@@ -85,13 +86,13 @@ def process_pdf_file(file_path):
                     if count > 0:
                         h_str = f"{h_str}_{count}"
                     unique_headers.append(h_str)
-                    
+
                 df = pd.DataFrame(table[header_idx + 1:], columns=unique_headers)
                 all_data.append(df)
-                
+
         if not all_data:
             return pd.DataFrame()
-            
+
         df = pd.concat(all_data, ignore_index=True)
         
         mapped_df = pd.DataFrame()
@@ -111,17 +112,17 @@ def process_pdf_file(file_path):
             if found_col is not None:
                 mapped_df[target] = df[found_col]
         df = mapped_df
-        
+
         if 'Placa' in df.columns:
             df['Placa'] = df['Placa'].apply(clean_placa)
             df = df[df['Placa'] != '']
             df = df[~df['Placa'].isin(['PLACA', 'NAN'])]
-            
+
         # Sanitização Numérica do PDF
         for col in ['Peso Bruto', 'Tara']:
             if col in df.columns:
                 df[col] = df[col].apply(safe_to_numeric)
-                
+
         if 'Data' in df.columns:
             df['Data'] = pd.to_datetime(df['Data'], errors='coerce', dayfirst=True)
 

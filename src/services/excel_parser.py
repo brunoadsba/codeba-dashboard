@@ -1,5 +1,6 @@
 import logging
 import traceback
+
 import pandas as pd
 
 from src.utils.cleaners import clean_placa, safe_to_numeric

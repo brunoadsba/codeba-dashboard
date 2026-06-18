@@ -1,11 +1,13 @@
 import logging
 import traceback
 import uuid
-import pandas as pd
 from collections import defaultdict
 
-from src.utils.cleaners import clean_placa
+import pandas as pd
+
+from src.services.analytics import build_volume_records
 from src.services.post_processing import detect_plate_typos, infer_product_from_history
+from src.utils.cleaners import clean_placa
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +40,7 @@ def get_pr_and_motivacao(item, produto):
                 break
     if not pr:
         pr = '11050'
-        
+
     # Determine Motivação
     motivacao = 'EGS'
     return pr, motivacao
@@ -70,7 +72,7 @@ def match_trips(ex_list, p_list):
     divergencias = []
     matched_p = set()
     matched_ex = set()
-    
+
     # 1. Match Exato (tolerância de 0.1kg para absorver dízimas da conversão float)
     for i, ex in enumerate(ex_list):
         best_p_idx = -1
@@ -78,7 +80,7 @@ def match_trips(ex_list, p_list):
             if j in matched_p:
                 continue
             diff = abs(ex['Peso Bruto'] - p['Peso Bruto']) + abs(ex['Tara'] - p['Tara'])
-            if diff < 0.1: 
+            if diff < 0.1:
                 best_p_idx = j
                 break
         if best_p_idx != -1:
@@ -99,24 +101,24 @@ def match_trips(ex_list, p_list):
                 'SEV': clean_sev(p.get('SEV')) if p else '',
                 'Detalhe': 'Pesagem exata'
             })
-            
+
     # 2. Match por Aproximação (Associa viagens com erro de digitação para apontar a diferença)
     for i, ex in enumerate(ex_list):
-        if i in matched_ex: 
+        if i in matched_ex:
             continue
-            
+
         best_p_idx = -1
         min_diff = float('inf')
         for j, p in enumerate(p_list):
-            if j in matched_p: 
+            if j in matched_p:
                 continue
             diff = abs(ex['Peso Bruto'] - p['Peso Bruto']) + abs(ex['Tara'] - p['Tara'])
             if diff < min_diff:
                 min_diff = diff
                 best_p_idx = j
-        
+
         prod_ex = ex.get('Produto', 'Desconhecido')
-        
+
         # Se houver um par disponível, nós vinculamos e apontamos a diferença exata.
         if best_p_idx != -1:
             p = p_list[best_p_idx]
@@ -151,7 +153,7 @@ def match_trips(ex_list, p_list):
                 'Motivacao': motiv,
                 'SEV': ''
             })
-            
+
     # 3. O que sobrou no PDF sem registro no Excel
     for j, p in enumerate(p_list):
         if j not in matched_p:
@@ -169,7 +171,7 @@ def match_trips(ex_list, p_list):
                 'Motivacao': motiv,
                 'SEV': clean_sev(p.get('SEV'))
             })
-            
+
     return ok_list, divergencias
 
 
@@ -237,10 +239,10 @@ def reconcile_data(df_excel, df_pdf, filter_date=None):
                 sev_mask = (df_p['SEV'] == '') | (df_p['SEV'].str.lower() == 'nan')
                 if sev_mask.any():
                     df_p.loc[sev_mask, 'SEV'] = [f"TEMP_SEV_{uuid.uuid4().hex}" for _ in range(sev_mask.sum())]
-                
+
                 # Ordenar por Peso Bruto decrescente para priorizar a pesagem carregada no topo do grupo
                 df_p = df_p.sort_values(by='Peso Bruto', ascending=False)
-                
+
                 agg_dict = {
                     'Placa': 'first',
                     'Data_Merge': 'first',
@@ -308,20 +310,20 @@ def reconcile_data(df_excel, df_pdf, filter_date=None):
         # Motor de Conciliação
         divergencias = []
         ok_list = []
-        
+
         ex_records = df_ex.to_dict('records')
         p_records = df_p.to_dict('records')
-        
+
         ex_grouped = defaultdict(list)
-        for r in ex_records: 
+        for r in ex_records:
             ex_grouped[f"{r['Placa']}_{r['Data_Merge']}"].append(r)
-            
+
         p_grouped = defaultdict(list)
-        for r in p_records: 
+        for r in p_records:
             p_grouped[f"{r['Placa']}_{r['Data_Merge']}"].append(r)
-            
+
         all_keys = set(ex_grouped.keys()).union(set(p_grouped.keys()))
-        
+
         for k in all_keys:
             o, d = match_trips(ex_grouped[k], p_grouped[k])
             ok_list.extend(o)
@@ -329,7 +331,7 @@ def reconcile_data(df_excel, df_pdf, filter_date=None):
 
         # Pós-processamento: Detecção de erros de digitação de placa
         divergencias = detect_plate_typos(divergencias)
-        
+
         # Pós-processamento: Dedução de produto por histórico de placas
         divergencias = infer_product_from_history(ok_list, divergencias)
 
@@ -353,8 +355,6 @@ def reconcile_data(df_excel, df_pdf, filter_date=None):
             prod_clean = prod.replace(' (Deduzido)', '') if prod else ''
             if prod_clean and prod_clean not in ('Não Identificado', '') and not prod_clean.startswith('Ambíguo'):
                 all_produtos.add(prod_clean)
-        
-        from src.services.analytics import build_volume_records
 
         result = {
             "resumo": {

@@ -26,11 +26,11 @@ def detect_plate_typos(divergencias):
     """
     falta_pdf = [(i, d) for i, d in enumerate(divergencias) if d['Status'] == 'Falta no PDF']
     falta_excel = [(i, d) for i, d in enumerate(divergencias) if d['Status'] == 'Falta no Excel']
-    
+
     indices_to_remove = set()
     typo_entries = []
     used_excel = set()
-    
+
     for i_fp, fp in falta_pdf:
         for i_fe, fe in falta_excel:
             if i_fe in used_excel:
@@ -61,7 +61,7 @@ def detect_plate_typos(divergencias):
                         'SEV': fe.get('SEV', '')
                     })
                     break
-    
+
     # Reconstruir lista sem os índices removidos, adicionando os typos
     result = [d for i, d in enumerate(divergencias) if i not in indices_to_remove]
     result.extend(typo_entries)
@@ -82,7 +82,7 @@ def infer_product_from_history(ok_list, divergencias):
             if placa not in placa_produtos:
                 placa_produtos[placa] = set()
             placa_produtos[placa].add(produto)
-    
+
     # Também considerar divergências que já têm produto (Falta no PDF, Diferença de Peso)
     for item in divergencias:
         placa = item.get('Placa', '')
@@ -91,7 +91,7 @@ def infer_product_from_history(ok_list, divergencias):
             if placa not in placa_produtos:
                 placa_produtos[placa] = set()
             placa_produtos[placa].add(produto)
-    
+
     # Aplicar dedução
     for item in divergencias:
         if item['Status'] == 'Falta no Excel' and not item.get('Produto'):
@@ -104,5 +104,5 @@ def infer_product_from_history(ok_list, divergencias):
                     item['Produto'] = f"Ambíguo ({', '.join(sorted(produtos))})"
             else:
                 item['Produto'] = 'Não Identificado'
-    
+
     return divergencias

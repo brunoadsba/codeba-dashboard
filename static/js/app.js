@@ -244,6 +244,7 @@ document.getElementById('btn-replace').addEventListener('click', () => {
     expectExcel.classList.remove('received');
     expectPdf.classList.remove('received');
     globalAuditData = null;
+    fileInput.value = '';
 });
 
 // ── Processar Arquivos ──────────────────────────────────────

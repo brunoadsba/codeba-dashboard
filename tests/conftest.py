@@ -1,8 +1,10 @@
-import pytest
 from pathlib import Path
+
+import pytest
 from fastapi.testclient import TestClient
 
 from src.app import app
+
 
 @pytest.fixture
 def project_root() -> Path:

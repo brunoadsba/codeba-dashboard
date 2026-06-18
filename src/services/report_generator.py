@@ -1,17 +1,14 @@
-import os
 import io
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
-from reportlab.lib.units import mm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.pdfgen import canvas
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from src.config import STATIC_DIR
 
@@ -71,10 +68,10 @@ def get_periodo_str(ok_list: list[dict], div_list: list[dict]) -> str:
         if dt:
             date_part = str(dt).split(" ")[0]
             all_dates.append(date_part)
-            
+
     if not all_dates:
         return "—"
-        
+
     def sort_key(d: str) -> tuple[int, int, int]:
         parts = d.split("/")
         if len(parts) == 3:
@@ -83,7 +80,7 @@ def get_periodo_str(ok_list: list[dict], div_list: list[dict]) -> str:
             except ValueError:
                 pass
         return 0, 0, 0
-        
+
     sorted_dates = sorted(list(set(all_dates)), key=sort_key)
     if len(sorted_dates) == 1:
         return sorted_dates[0]
@@ -184,38 +181,38 @@ class NumberedCanvas(canvas.Canvas):
 def filter_records(ok_list: list[dict], div_list: list[dict], filters: dict) -> tuple[list[dict], list[dict]]:
     filtered_ok = ok_list.copy()
     filtered_div = div_list.copy()
-    
+
     placa = filters.get("placa")
     if placa:
         placa_clean = placa.strip().replace("-", "").upper()
-        
+
         def match_placa(item):
             # Matches standard Placa, Placa_Excel, or Placa_PDF
             p = str(item.get("Placa", "")).strip().replace("-", "").upper()
             pe = str(item.get("Placa_Excel", "")).strip().replace("-", "").upper()
             pp = str(item.get("Placa_PDF", "")).strip().replace("-", "").upper()
             return placa_clean in p or placa_clean in pe or placa_clean in pp
-            
+
         filtered_ok = [i for i in filtered_ok if match_placa(i)]
         filtered_div = [i for i in filtered_div if match_placa(i)]
-        
+
     produto = filters.get("produto")
     if produto:
         prod_clean = produto.strip().upper()
-        
+
         def match_produto(item):
             p = str(item.get("Produto", "")).strip().upper()
             return prod_clean in p
-            
+
         filtered_ok = [i for i in filtered_ok if match_produto(i)]
         filtered_div = [i for i in filtered_div if match_produto(i)]
-        
+
     date_start = filters.get("date_start")
     date_end = filters.get("date_end")
     if date_start or date_end:
         start_dt = pd.to_datetime(date_start).date() if date_start else None
         end_dt = pd.to_datetime(date_end).date() if date_end else None
-        
+
         def match_date(item):
             dt_str = item.get("Data", "")
             if not dt_str:
@@ -230,39 +227,39 @@ def filter_records(ok_list: list[dict], div_list: list[dict], filters: dict) -> 
                 return True
             except Exception:
                 return False
-                
+
         filtered_ok = [i for i in filtered_ok if match_date(i)]
         filtered_div = [i for i in filtered_div if match_date(i)]
-        
+
     return filtered_ok, filtered_div
 
 
 def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tuple[bytes, str]:
     """
     Gera o PDF do relatório de não conformidades com base nos filtros fornecidos.
-    
+
     Returns:
         tuple contendo (bytes_do_pdf, nome_do_arquivo)
     """
     ok_list = payload.get("ok", [])
     div_list = payload.get("divergencias", [])
-    
+
     # Filtrar dados de acordo com a seleção ativa
     filtered_ok, filtered_div = filter_records(ok_list, div_list, filters)
-    
+
     # Calcular metadados do período com base no dataset completo ou filtrado?
     # O período do cabeçalho representa as datas dos arquivos analisados
     periodo_str = get_periodo_str(filtered_ok, filtered_div)
-    
+
     # Timestamp de emissão (Bahia/Ilhéus - local do servidor)
     emissao_dt = datetime.now()
     emissao_str = emissao_dt.strftime("%d/%m/%Y %H:%M:%S")
     file_timestamp = emissao_dt.strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"relatorio_executivo_auditoria_{file_timestamp}.pdf"
-    
+
     # Preparar buffer
     buffer = io.BytesIO()
-    
+
     # Configurar Template de Documento A4
     doc = SimpleDocTemplate(
         buffer,
@@ -272,9 +269,9 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
         topMargin=95,   # Espaço para a faixa institucional
         bottomMargin=58
     )
-    
+
     styles = getSampleStyleSheet()
-    
+
     # ── Estilos de Parágrafos ─────────────────────────────────
     title_style = ParagraphStyle(
         "ReportSectionTitle",
@@ -287,7 +284,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
         spaceAfter=6,
         keepWithNext=True
     )
-    
+
     body_style = ParagraphStyle(
         "ReportBodyText",
         parent=styles["Normal"],
@@ -297,7 +294,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
         textColor=SLATE_700,
         spaceAfter=10
     )
-    
+
     bullet_style = ParagraphStyle(
         "ReportBullet",
         parent=styles["Normal"],
@@ -309,7 +306,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
         firstLineIndent=-10,
         spaceAfter=4
     )
-    
+
     # Estilos de células de tabela
     th_style = ParagraphStyle(
         "TableHeader",
@@ -319,7 +316,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
         textColor=colors.white,
         alignment=TA_CENTER
     )
-    
+
     td_style_center = ParagraphStyle(
         "TableCellCenter",
         fontName="Helvetica",
@@ -328,7 +325,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
         textColor=SLATE_700,
         alignment=TA_CENTER
     )
-    
+
     td_style_green_center = ParagraphStyle(
         "TableCellGreenCenter",
         fontName="Helvetica-Bold",
@@ -337,7 +334,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
         textColor=GREEN_700,
         alignment=TA_CENTER
     )
-    
+
     td_style_left = ParagraphStyle(
         "TableCellLeft",
         fontName="Helvetica",
@@ -346,31 +343,13 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
         textColor=SLATE_700,
         alignment=TA_LEFT
     )
-    
+
     td_style_right = ParagraphStyle(
         "TableCellRight",
         fontName="Helvetica",
         fontSize=7.5,
         leading=10,
         textColor=SLATE_700,
-        alignment=TA_RIGHT
-    )
-    
-    td_style_bold_right = ParagraphStyle(
-        "TableCellBoldRight",
-        fontName="Helvetica-Bold",
-        fontSize=7.5,
-        leading=10,
-        textColor=SLATE_900,
-        alignment=TA_RIGHT
-    )
-    
-    td_style_footer = ParagraphStyle(
-        "TableFooter",
-        fontName="Helvetica-Bold",
-        fontSize=7.5,
-        leading=10,
-        textColor=SLATE_600,
         alignment=TA_RIGHT
     )
 
@@ -384,14 +363,14 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
             textColor=status_color,
             alignment=TA_CENTER
         )
-    
+
     story = []
-    
+
     # ══════════════════════════════════════════════════════════════
     # SEÇÃO 1: Inconsistências Encontradas
     # ══════════════════════════════════════════════════════════════
     story.append(Paragraph("1. Inconsistências Encontradas", title_style))
-    
+
     num_div = len(filtered_div)
     if num_div > 0:
         intro_txt = (
@@ -406,11 +385,11 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
         )
     story.append(Paragraph(intro_txt, body_style))
     story.append(Spacer(1, 4))
-    
+
     # Construir tabela de divergências
     # Larguras das colunas: total ~535pt
     div_col_widths = [80, 60, 60, 75, 75, 70, 40, 75.3]
-    
+
     div_table_data = [
         [
             Paragraph("Data / Horário", th_style),
@@ -423,17 +402,17 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
             Paragraph("Peso Bruto", th_style)
         ]
     ]
-    
+
     # Rastrear tipos de erro para o Plano de Ação
     error_types_found = set()
-    
+
     for item in filtered_div:
         status = item.get("Status", "")
         error_types_found.add(status)
-        
+
         placa_excel = "—"
         placa_pdf = "—"
-        
+
         if status == "Erro de Placa":
             placa_excel = item.get("Placa_Excel", "")
             placa_pdf = item.get("Placa_PDF", "")
@@ -444,14 +423,14 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
         else:
             placa_excel = item.get("Placa", "")
             placa_pdf = item.get("Placa", "")
-            
+
         prod = item.get("Produto", "") or ""
         prod_clean = prod.replace(" (Deduzido)", "").upper()
-        
+
         sev_val = item.get("SEV", "") or ""
         pr = item.get("PR", "11050")
         peso_bruto = format_kg(item.get("Peso Bruto"))
-        
+
         dt_str = item.get("Data", "—")
         if dt_str and dt_str != "—" and ":" not in dt_str:
             dt_str = f"{dt_str} (Excel)"
@@ -459,7 +438,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
         # Cor do badge de status
         _, status_color = _row_color_for_status(status)
         status_style = _status_para_style(status_color)
-        
+
         row = [
             Paragraph(dt_str, td_style_center),
             Paragraph(placa_excel, td_style_center),
@@ -471,7 +450,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
             Paragraph(peso_bruto, td_style_right)
         ]
         div_table_data.append(row)
-        
+
     if num_div == 0:
         row_empty = [
             Paragraph("—", td_style_center),
@@ -484,7 +463,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
             Paragraph("—", td_style_center)
         ]
         div_table_data.append(row_empty)
-        
+
     # Estilização da Tabela de Divergências
     div_t_style = TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), CODEBA_BLUE),
@@ -497,21 +476,21 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
         ("LEFTPADDING", (0, 0), (-1, -1), 4),
         ("RIGHTPADDING", (0, 0), (-1, -1), 4),
     ])
-    
+
     # Aplicar cores de fundo por tipo de erro
     for i, item in enumerate(filtered_div):
         row_idx = i + 1  # +1 pois header é 0
         bg_color, _ = _row_color_for_status(item.get("Status", ""))
         div_t_style.add("BACKGROUND", (0, row_idx), (-1, row_idx), bg_color)
-    
+
     # Se não teve divergências, fundo branco na linha vazia
     if num_div == 0:
         div_t_style.add("BACKGROUND", (0, 1), (-1, 1), SLATE_50)
-        
+
     div_table = Table(div_table_data, colWidths=div_col_widths, style=div_t_style, repeatRows=1)
     story.append(div_table)
     story.append(Spacer(1, 18))
-    
+
     # ══════════════════════════════════════════════════════════════
     # SEÇÃO 2: Resumo Operacional (caixa estilizada)
     # ══════════════════════════════════════════════════════════════
@@ -521,12 +500,12 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
         body_style
     ))
     story.append(Spacer(1, 4))
-    
+
     # Calcular KPIs
     total_viagens = len(filtered_ok) + len(filtered_div)
     ok_count = len(filtered_ok)
     pct_sem_erro = (ok_count / total_viagens * 100.0) if total_viagens > 0 else 0.0
-    
+
     # Volume total
     tot_vol_kg = 0
     for item in filtered_ok:
@@ -534,7 +513,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
     for item in filtered_div:
         tot_vol_kg += item.get("Peso Bruto", 0) - item.get("Tara", 0)
     tot_vol_t = tot_vol_kg / 1000.0
-    
+
     # Status geral
     if pct_sem_erro == 100.0:
         status_geral = "Excelente"
@@ -563,9 +542,9 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
     kpi_status_style = ParagraphStyle(
         "KpiStatus", fontName="Helvetica-Bold", fontSize=11, leading=14, textColor=status_color, alignment=TA_LEFT
     )
-    
+
     pct_str = f"{pct_sem_erro:.1f}%".replace(".", ",")
-    
+
     kpi_data = [
         [
             Paragraph("Volume Movimentado", kpi_label),
@@ -582,7 +561,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
             Paragraph(status_geral, kpi_status_style),
         ]
     ]
-    
+
     kpi_col_w = [535.3 / 5] * 5
     kpi_style = TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), SLATE_50),
@@ -598,16 +577,16 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
         # Fundo colorido na célula de status
         ("BACKGROUND", (-1, 1), (-1, 1), status_bg),
     ])
-    
+
     kpi_table = Table(kpi_data, colWidths=kpi_col_w, style=kpi_style)
     story.append(kpi_table)
     story.append(Spacer(1, 18))
-    
+
     # ══════════════════════════════════════════════════════════════
     # SEÇÃO 3: Plano de Ação (dinâmico)
     # ══════════════════════════════════════════════════════════════
     story.append(Paragraph("3. Plano de Ação", title_style))
-    
+
     if num_div == 0:
         story.append(Paragraph(
             "Não foram identificadas divergências neste período. Nenhuma ação corretiva é necessária. "
@@ -621,7 +600,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
             body_style
         ))
         story.append(Spacer(1, 4))
-        
+
         # Recomendações condicionais baseadas nos tipos de erro encontrados
         if "Erro de Placa" in error_types_found:
             story.append(Paragraph(
@@ -631,7 +610,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
                 "alto volume de operação.",
                 bullet_style
             ))
-            
+
         if "Falta no Excel" in error_types_found:
             story.append(Paragraph(
                 "• <b>Registros Ausentes na Planilha:</b> Existem pesagens registradas no sistema OpenPort "
@@ -639,7 +618,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
                 "e orientar a equipe para que todas as pesagens sejam devidamente registradas.",
                 bullet_style
             ))
-            
+
         if "Falta no PDF" in error_types_found:
             story.append(Paragraph(
                 "• <b>Registros Ausentes no OpenPort:</b> Existem registros na planilha Excel que não "
@@ -647,7 +626,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
                 "corretamente nos períodos correspondentes e se o sistema registrou todas as pesagens.",
                 bullet_style
             ))
-            
+
         if "Diferença de Peso" in error_types_found:
             story.append(Paragraph(
                 "• <b>Diferenças de Peso:</b> Foram constatadas divergências nos valores de peso bruto "
@@ -655,7 +634,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
                 "sendo transferidos corretamente para as planilhas.",
                 bullet_style
             ))
-        
+
         # Recomendação geral sempre presente
         story.append(Spacer(1, 4))
         story.append(Paragraph(
@@ -663,13 +642,13 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
             "monitoramento da evolução dos indicadores e garantia da qualidade dos dados operacionais.",
             bullet_style
         ))
-    
+
     # Injetar variáveis de instância no canvasmaker personalizado
     canvasmaker = make_canvas_maker(periodo_str, emissao_str)
-    
+
     # Build PDF
     doc.build(story, canvasmaker=canvasmaker)
-    
+
     pdf_bytes = buffer.getvalue()
     buffer.close()
     return pdf_bytes, filename

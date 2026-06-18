@@ -1,11 +1,11 @@
 import os
-from pathlib import Path
+
 
 def test_report_endpoint(client, excel_dir, pdf_path):
     """Testa a geração de relatório PDF da auditoria"""
     files = []
     opened_files = []
-    
+
     try:
         # Adicionar todos os Excels
         excel_files = [f for f in os.listdir(excel_dir) if f.endswith('.xlsx')]
@@ -14,19 +14,19 @@ def test_report_endpoint(client, excel_dir, pdf_path):
             opened = open(fp, 'rb')
             opened_files.append(opened)
             files.append(('files', (f, opened, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')))
-        
+
         # Adicionar o PDF
         pdf_opened = open(pdf_path, 'rb')
         opened_files.append(pdf_opened)
         files.append(('files', (pdf_path.name, pdf_opened, 'application/pdf')))
-        
+
         # Enviar request de upload para gerar uma run
         response = client.post("/api/upload", files=files)
         assert response.status_code == 200
         data = response.json()
         assert 'run_id' in data
         run_id = data['run_id']
-        
+
         # Testar GET sem filtros
         report_resp = client.get(f"/api/runs/{run_id}/report")
         assert report_resp.status_code == 200

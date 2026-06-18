@@ -38,5 +38,18 @@ desktop.ini
 data/auditoria.db
 data/*.db
 
+# Cache do pytest
+.pytest_cache/
+
 # Artefatos de diagnóstico
 analysis_results.json
+
+# Scripts locais de desenvolvimento e diagnóstico
+scripts/diagnostics/
+
+# Dados operacionais (planilhas e PDFs reais)
+data/*.xlsx
+data/*.xls
+data/*.pdf
+data/relatório/
+data/implementação/

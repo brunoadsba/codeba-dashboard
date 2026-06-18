@@ -1,13 +1,14 @@
 import os
-import argparse
 from datetime import datetime
+
 from playwright.sync_api import sync_playwright
+
 
 def run_rpa(data_inicio, data_fim, download_dir):
     with sync_playwright() as p:
-        # headless=False mostra o navegador na tela durante os testes. 
+        # headless=False mostra o navegador na tela durante os testes.
         # Quando quiser rodar invisível, mude para headless=True
-        browser = p.chromium.launch(headless=False) 
+        browser = p.chromium.launch(headless=False)
         page = browser.new_page()
 
         try:
@@ -15,8 +16,10 @@ def run_rpa(data_inicio, data_fim, download_dir):
             page.goto("https://openportilheus.codeba.gov.br/openportcodeba/")
 
             print("2. Realizando login (simulando digitação humana)...")
-            page.locator("xpath=/html/body/div/div[2]/form/div[1]/div/input").press_sequentially("01879832593", delay=120)
-            page.locator("xpath=/html/body/div/div[2]/form/div[2]/div/input").press_sequentially("#@Codeba2030", delay=120)
+            openport_user = os.environ.get("OPENPORT_USER", "01879832593")
+            openport_pass = os.environ.get("OPENPORT_PASS", "#@Codeba2030")
+            page.locator("xpath=/html/body/div/div[2]/form/div[1]/div/input").press_sequentially(openport_user, delay=120)
+            page.locator("xpath=/html/body/div/div[2]/form/div[2]/div/input").press_sequentially(openport_pass, delay=120)
             page.wait_for_timeout(500) # Pausa rápida antes de clicar
             page.locator("xpath=/html/body/div/div[2]/form/div[4]/div[2]/div/button").click()
 
@@ -25,10 +28,10 @@ def run_rpa(data_inicio, data_fim, download_dir):
             page.locator("xpath=/html/body/div/div[1]/div/div[3]/form/div/span[1]/input[2]").press_sequentially("7714", delay=150)
             # Clicar na Lupa
             page.locator("xpath=/html/body/div/div[1]/div/div[3]/form/div/span[2]/button/i").click()
-            
+
             # Pausa rápida para a tela/menu carregar
             page.wait_for_timeout(2000)
-            
+
             # Clicar na opção 7714 listada
             page.locator("xpath=/html/body/div[3]/form/fieldset/div[2]/ul/li/div/label").click()
 
@@ -45,7 +48,7 @@ def run_rpa(data_inicio, data_fim, download_dir):
             page.locator("xpath=/html/body/div[3]/div[1]/button[5]").click()
 
             # Aguardar 5 segundos para o relatório renderizar completamente na tela
-            page.wait_for_timeout(5000) 
+            page.wait_for_timeout(5000)
 
             # Montar o nome do arquivo
             nome_arquivo = f"{data_inicio.replace('/', '_')}_a_{data_fim.replace('/', '_')}.pdf"
@@ -60,7 +63,7 @@ def run_rpa(data_inicio, data_fim, download_dir):
 
         except Exception as e:
             print(f"❌ Ocorreu um erro durante a automação: {e}")
-        
+
         finally:
             # Sempre fecha o navegador no final, mesmo se der erro
             browser.close()
@@ -69,13 +72,13 @@ if __name__ == "__main__":
     # Minha recomendação para datas dinâmicas:
     # O script aceita que as datas sejam digitadas manualmente no terminal,
     # OU oferece uma opção rápida de "Mês Atual", perfeita para o dia-a-dia.
-    
+
     print("="*40)
     print("RPA CODEBA - EXTRAÇÃO RELATÓRIO 7714")
     print("="*40)
-    
+
     resposta = input("Deseja rodar com as datas do MÊS ATUAL? (S/N): ").strip().upper()
-    
+
     hoje = datetime.now()
     if resposta == 'S':
         # Calcula do dia 01 do mês atual até o dia de hoje
@@ -86,8 +89,8 @@ if __name__ == "__main__":
         # Pede para digitar se for 'N'
         data_inicio = input("Digite a data de Início (ex: 13/05/2026): ").strip()
         data_fim = input("Digite a data de Fim (ex: 02/06/2026): ").strip()
-        
-    download_dir = r"C:\Users\bruno.santos\Downloads\Projetos"
-    
+
+    download_dir = os.environ.get("RPA_DOWNLOAD_DIR", os.path.join(os.environ.get("USERPROFILE", ""), "Downloads", "Projetos"))
+
     print(f"\nIniciando robô para o período {data_inicio} até {data_fim}...")
     run_rpa(data_inicio, data_fim, download_dir)

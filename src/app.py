@@ -1,25 +1,25 @@
+import gc
+import io
 import logging
 import os
-import time
-import uuid
 import traceback
-import gc
+import uuid
 from contextlib import asynccontextmanager
 from typing import List
 
 import pandas as pd
-import io
-from fastapi import FastAPI, UploadFile, File, Query
-from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI, File, Query, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 
-from src.config import STATIC_DIR, UPLOAD_DIR, ALLOWED_EXTENSIONS, MAX_FILE_SIZE, HOST, PORT, DATABASE_PATH
+from src.config import ALLOWED_EXTENSIONS, DATABASE_PATH, HOST, MAX_FILE_SIZE, PORT, STATIC_DIR, UPLOAD_DIR
 from src.logging_config import setup_logging
 from src.services.excel_parser import process_excel_file
 from src.services.pdf_parser import process_pdf_file
+from src.services.persistence import delete_audit_run, get_audit_run, init_db, list_audit_runs, save_audit_run
 from src.services.reconciliation import reconcile_data
-from src.services.persistence import init_db, save_audit_run, list_audit_runs, get_audit_run, delete_audit_run
 from src.services.report_generator import generate_pdf_report
+from src.utils.file_utils import cleanup_temp_files
 from src.utils.filename_parser import extract_produto_from_filename
 
 # Inicializar logs
@@ -84,14 +84,14 @@ async def api_get_run_report(
     payload = get_audit_run(DATABASE_PATH, run_id)
     if not payload:
         return JSONResponse(status_code=404, content={"error": "Auditoria não encontrada."})
-    
+
     filters = {
         "placa": placa,
         "produto": produto,
         "date_start": date_start,
         "date_end": date_end
     }
-    
+
     try:
         pdf_bytes, filename = generate_pdf_report(payload, filters)
         return StreamingResponse(
@@ -214,44 +214,7 @@ async def upload_files(files: List[UploadFile] = File(...)):
     finally:
         # Liberar handles (openpyxl no Windows) antes de apagar temporários
         gc.collect()
-        _cleanup_temp_files(saved_files)
-
-
-def _cleanup_temp_files(file_paths):
-    """Remove arquivos temporários com retry para locks do Windows."""
-    for fp in file_paths:
-        removed = False
-        for attempt in range(5):
-            try:
-                if os.path.exists(fp):
-                    os.remove(fp)
-                removed = True
-                break
-            except PermissionError:
-                wait = 0.5 * (attempt + 1)
-                logger.warning(
-                    "Arquivo bloqueado, tentativa %s/5 em %.1fs: %s",
-                    attempt + 1, wait, fp,
-                )
-                time.sleep(wait)
-            except OSError as e:
-                if getattr(e, "winerror", None) == 32 and attempt < 4:
-                    wait = 0.5 * (attempt + 1)
-                    logger.warning(
-                        "Arquivo em uso (WinError 32), tentativa %s/5 em %.1fs: %s",
-                        attempt + 1, wait, fp,
-                    )
-                    time.sleep(wait)
-                else:
-                    logger.error(f"Não foi possível remover {fp}: {e}")
-                    break
-            except Exception as e:
-                logger.error(f"Erro ao remover {fp}: {e}")
-                break
-        if not removed and os.path.exists(fp):
-            logger.error(
-                "Arquivo temporário não removido após retries (será ignorado): %s", fp
-            )
+        cleanup_temp_files(saved_files)
 
 
 if __name__ == "__main__":
