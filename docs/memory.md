@@ -341,6 +341,10 @@ Recarregar do histórico: `GET /api/runs/{id}` → mesmo pipeline de renderizaç
 51. **UX da Tela de Upload:** Reformulado o texto descritivo da drop zone para "Planilha da balança (.xlsx) + Relatório OpenPort (.pdf)" e movido "Tela 7714" como subtítulo discreto dentro do indicador visual do PDF, associando a informação ao formato correto sem poluir a chamada principal para ação.
 52. **Background Image:** A imagem de fundo `areo-001.png` (1912×916 px, RGBA) foi posicionada em `static/bg-ilheus.png`, corrigindo a referência do CSS que apontava para `/static/bg-ilheus.png`.
 
+### v4.0.1 (Limpeza de Branches)
+
+53. **Branches obsoletas removidas:** Deletadas 7 branches locais (`limpeza`, `master`, `teste`, `resolvendo-duplicacao`, `ajuste-relatorio`, `feature/branch-no-relatorio`) e 3 remotas (`feature/branch-no-relatorio`, `feature/geracao-de-relatorios`, `inserindo-SEV`). O repositório agora contém apenas a branch `main`.
+
 ---
 
 ## Próximos passos sugeridos (não implementados)
