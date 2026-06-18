@@ -31,7 +31,6 @@ def test_upload_completo(client, excel_dir, pdf_path):
         assert 'ok' in data
         assert 'divergencias' in data
         assert 'produtos_detectados' in data
-        assert 'clientes_por_produto' in data
         assert 'volume' in data
         assert 'records' in data['volume']
         assert 'run_id' in data
@@ -48,20 +47,17 @@ def test_upload_completo(client, excel_dir, pdf_path):
         ok_list = data['ok']
         div_list = data['divergencias']
         produtos = data['produtos_detectados']
-        clientes = data['clientes_por_produto']
 
         assert resumo.get('ok', 0) > 0
         assert resumo.get('total_processado', 0) == len(ok_list) + len(div_list)
-
+ 
         assert len(produtos) >= 2
         assert any('LITIO' in p.upper() for p in produtos)
-
-        assert len(clientes) >= 1
 
         # Validar registros OK
         if len(ok_list) > 0:
             sample = ok_list[0]
-            required_fields = ['Placa', 'Data', 'Peso Bruto', 'Tara', 'Peso Liquido', 'Produto', 'Cliente']
+            required_fields = ['Placa', 'Data', 'Peso Bruto', 'Tara', 'Peso Liquido', 'Produto', 'SEV']
             for field in required_fields:
                 assert field in sample
 
