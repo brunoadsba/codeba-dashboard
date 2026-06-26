@@ -7,8 +7,8 @@
     <title>CODEBA — Auditoria de Pesagens</title>
     <meta name="description" content="Dashboard de Auditoria de Pesagens CODEBA — Conciliação Excel vs OpenPort">
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="/static/css/style.css?v=4.2">
-    <link rel="stylesheet" href="/static/css/responsive.css?v=4.2">
+    <link rel="stylesheet" href="/static/css/style.css?v=4.3">
+    <link rel="stylesheet" href="/static/css/responsive.css?v=4.3">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <!-- Google Fonts: Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -140,6 +140,19 @@
                 </button>
             </section>
 
+            <!-- Alerta de Registros Descartados (dados inválidos/corrompidos) -->
+            <section class="discarded-aviso hidden" id="discarded-aviso-section" aria-live="polite">
+                <i class="ph ph-warning-octagon"></i>
+                <div class="discarded-aviso-body">
+                    <p class="discarded-aviso-title" id="discarded-aviso-title">Registros Descartados por Inconsistência nos Dados de Entrada</p>
+                    <div class="discarded-aviso-content" id="discarded-aviso-content"></div>
+                </div>
+                <button type="button" class="discarded-aviso-dismiss" id="discarded-aviso-dismiss" title="Dispensar aviso">
+                    <i class="ph ph-x"></i>
+                </button>
+            </section>
+
+
             <!-- Volume Operacional -->
             <section class="analytics-section fade-in-up stagger-2" id="analytics-section" style="display: none;">
                 <div class="analytics-header">
@@ -204,14 +217,6 @@
                         <div class="kpi-sub text-danger" id="sub-div">—</div>
                     </div>
                 </div>
-                <div class="kpi-card accent fade-in-up stagger-5" id="kpi-worst-product">
-                    <div class="kpi-icon"><i class="ph ph-chart-pie-slice"></i></div>
-                    <div class="kpi-info">
-                        <div class="kpi-value" id="val-worst-pct">0%</div>
-                        <div class="kpi-label" id="label-worst-product">Menor Acurácia</div>
-                        <div class="kpi-sub text-warning" id="sub-worst-product">—</div>
-                    </div>
-                </div>
                 <div class="kpi-card volume fade-in-up stagger-5" id="kpi-volume">
                     <div class="kpi-icon"><i class="ph ph-scales"></i></div>
                     <div class="kpi-info">
@@ -251,14 +256,47 @@
                         <table class="audit-table divergencias-table">
                             <thead>
                                 <tr>
-                                    <th class="text-left">Placa</th>
-                                    <th class="text-center">Data</th>
-                                    <th class="text-left">Produto</th>
-                                    <th class="text-left">Tipo do Erro</th>
-                                    <th class="text-left">Detalhe / Comparação</th>
+                                    <th class="text-center col-item">Ítem</th>
+                                    <th class="text-center col-sev">SEV</th>
+                                    <th class="text-center col-placa">Placa</th>
+                                    <th class="text-center col-data">Data / Hora</th>
+                                    <th class="text-center col-produto">Produto</th>
+                                    <th class="text-center col-pesos">Pesos (Bruto / Tara / Líq.)</th>
+                                    <th class="text-center col-status">Status</th>
                                 </tr>
                             </thead>
                             <tbody id="tbody-divergencias">
+                                <!-- JS fill -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Pesagens Incompletas (OpenPort) -->
+            <section class="audit-section" id="section-incompletas" style="display: none;">
+                <div class="section-header">
+                    <h3 class="section-title">
+                        <i class="ph ph-warning-octagon" style="color: var(--warning)"></i>
+                        Pesagens Incompletas (OpenPort)
+                        <span class="badge-count badge-warning" id="badge-incompletas">0</span>
+                    </h3>
+                </div>
+                <div class="section-body" id="body-incompletas">
+                    <div class="table-container">
+                        <table class="audit-table divergencias-table">
+                            <thead>
+                                <tr>
+                                    <th class="text-center col-item">Ítem</th>
+                                    <th class="text-center col-sev">SEV</th>
+                                    <th class="text-center col-placa">Placa</th>
+                                    <th class="text-center col-data">Data / Hora</th>
+                                    <th class="text-center col-produto">Produto</th>
+                                    <th class="text-center col-pesos">Pesos (Bruto / Tara / Líq.)</th>
+                                    <th class="text-center col-status">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-incompletas">
                                 <!-- JS fill -->
                             </tbody>
                         </table>
@@ -270,7 +308,13 @@
 
         <!-- Footer -->
         <footer class="dashboard-footer" id="dashboard-footer">
-            Processado em <span id="footer-timestamp">—</span> · CODEBA Auditoria v3.1
+            <div class="footer-meta">
+                Processado em <span id="footer-timestamp">—</span> · CODEBA Auditoria v4.6.0
+            </div>
+            <div class="footer-integrity" id="footer-integrity-container" style="margin-top: 8px; font-size: 0.75rem; color: var(--text-tertiary); display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <i class="ph ph-shield-check" style="color: var(--success); font-size: 0.9rem;"></i>
+                <span>Hash de Integridade (SHA-256): <strong id="integrity-hash-val" style="font-family: monospace; color: var(--text-secondary);">—</strong></span>
+            </div>
         </footer>
     </div>
 
@@ -281,6 +325,18 @@
             <h3>Atenção</h3>
             <p id="error-modal-message">Ocorreu um erro.</p>
             <button id="error-modal-close" class="btn-primary">Entendi</button>
+        </div>
+    </div>
+
+    <!-- ════════════ Feature Soon Modal ════════════ -->
+    <div id="feature-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-icon feature-modal-icon"><i class="ph ph-tools"></i></div>
+            <h3 id="feature-modal-title">Funcionalidade em Desenvolvimento</h3>
+            <p id="feature-modal-message">Esta ação será implementada em breve.</p>
+            <div class="modal-actions">
+                <button id="feature-modal-close" class="btn-outline">Fechar</button>
+            </div>
         </div>
     </div>
 
@@ -355,10 +411,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
-    <script src="/static/js/analytics.js?v=4.2"></script>
-    <script src="/static/js/charts.js?v=4.2"></script>
-    <script src="/static/js/history.js?v=4.2"></script>
-    <script src="/static/js/app.js?v=4.2"></script>
+    <script src="/static/js/analytics.js?v=4.3"></script>
+    <script src="/static/js/charts.js?v=4.3"></script>
+    <script src="/static/js/history.js?v=4.3"></script>
+    <script src="/static/js/app.js?v=4.3"></script>
 </body>
 
 </html>

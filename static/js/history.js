@@ -83,9 +83,10 @@ async function loadHistoryList() {
 }
 
 function createHistoryItem(run) {
-    const item = document.createElement('button');
-    item.type = 'button';
+    const item = document.createElement('div');
     item.className = 'history-item' + (run.id === currentRunId ? ' active' : '');
+    item.setAttribute('role', 'button');
+    item.setAttribute('tabindex', '0');
 
     const header = document.createElement('div');
     header.className = 'history-item-header';
@@ -151,6 +152,12 @@ function createHistoryItem(run) {
     item.appendChild(actions);
 
     item.addEventListener('click', () => loadHistoryRun(run.id));
+    item.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            loadHistoryRun(run.id);
+        }
+    });
 
     return item;
 }

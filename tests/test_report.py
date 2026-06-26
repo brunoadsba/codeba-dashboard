@@ -32,8 +32,10 @@ def test_report_endpoint(client, excel_dir, pdf_path):
         assert report_resp.status_code == 200
         assert report_resp.headers["content-type"] == "application/pdf"
         assert "Content-Disposition" in report_resp.headers
-        assert "attachment; filename=" in report_resp.headers["Content-Disposition"]
-        assert report_resp.headers["Content-Disposition"].endswith(".pdf\"")
+        cd_header = report_resp.headers["Content-Disposition"]
+        assert "attachment" in cd_header
+        assert "filename=" in cd_header or "filename*=" in cd_header
+        assert ".pdf" in cd_header
         assert len(report_resp.content) > 0
         assert b"SEV" in report_resp.content
 

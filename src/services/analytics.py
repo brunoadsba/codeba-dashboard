@@ -79,10 +79,13 @@ def build_volume_records(ok_list: list[dict], divergencias: list[dict]) -> dict[
     }
 
 
-def compute_period_bounds(ok_list: list[dict], divergencias: list[dict]) -> tuple[str | None, str | None]:
+def compute_period_bounds(ok_list: list[dict], divergencias: list[dict], notas_informativas: list[dict] | None = None) -> tuple[str | None, str | None]:
     """Retorna (period_start, period_end) em DD/MM/YYYY."""
     dates: list[str] = []
-    for item in ok_list + divergencias:
+    items_to_check = ok_list + divergencias
+    if notas_informativas:
+        items_to_check += notas_informativas
+    for item in items_to_check:
         d = item.get("Data")
         if d:
             dates.append(d)

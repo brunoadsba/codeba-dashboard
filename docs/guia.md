@@ -29,11 +29,24 @@ Bem-vindo ao guia de utilização do Dashboard de Auditoria de Pesagens. Este do
 Lista as viagens que conferem entre as duas fontes. Colunas: Placa, Data, Peso Bruto, Tara, Peso Líquido, Produto, PR, SEV (número do romaneio).
 
 ### Aba de Divergências
-Registros com problemas divididos em categorias:
-- **Diferença de Peso:** Mesma placa/data mas pesos diferentes entre Excel e PDF
-- **Falta no PDF:** Viagem registrada no Excel mas ausente no relatório OpenPort
-- **Falta no Excel:** Viagem do OpenPort que não foi registrada na planilha
-- **Erro de Placa:** Placa digitada incorretamente no Excel (detectado por similaridade)
+Lista as inconsistências e erros encontrados na conciliação. 
+
+Para manter o painel limpo, os detalhes da divergência ficam ocultos por padrão. **Clique em qualquer parte de uma linha de divergência** para abrir o painel expansível inline:
+
+- **Card de Erro (Borda Vermelha):** Exibe a explicação da falha e, no caso de erros de data, aponta o arquivo, aba, linha e as datas em conflito (Excel vs PDF).
+- **Card de Contexto (Borda Verde):** Apresenta o contexto operacional do veículo (viagens OK no dia, produto esperado e a diferença em dias calculada dinamicamente).
+- **Ações Rápidas (Rodapé):**
+  - **Corrigir Placa:** Aplica a correção de placa sugerida pelo sistema (PDF como fonte primária). *Em desenvolvimento — exibe notificação toast.*
+  - **Ignorar:** Mantém a placa original do Excel, descartando a sugestão automática. *Em desenvolvimento — exibe notificação toast.*
+  - **Cadastrar viagem:** Cria um registro de viagem para a placa quando não há vínculo. *Em desenvolvimento — abre modal de aviso.*
+  - **Marcar como revisado:** Altera o status visual da linha (reduz opacidade, tacha os dados e atualiza o badge para "Revisado") para indicar que a análise já foi feita. O painel é recolhido automaticamente após 450ms.
+  - **Abrir no Excel:** Atalho para abrir a planilha manual na aba e linha correspondentes. *Em desenvolvimento — exibe notificação toast.*
+
+> [!NOTE]
+> **Ações em desenvolvimento:** Os botões de ação do painel de detalhes ainda não estão conectados ao backend. Ao clicar, o sistema exibe uma notificação toast (ações leves) ou um modal (Cadastrar viagem) informando que a funcionalidade será disponibilizada em breve. Os botões aparecem com opacidade reduzida e exibem tooltip ao passar o mouse.
+
+> [!TIP]
+> **Contexto de Multiviagens:** O Card de Contexto (Verde) exibirá se a placa possui viagens bem-sucedidas (OK) no mesmo dia. Se sim, isso é um forte indício de que a pesagem divergente foi simplesmente esquecida na planilha manual de controle do balanceiro.
 
 ---
 
@@ -73,9 +86,9 @@ Clique em **"Novo Upload"** no topo para voltar à tela inicial e processar novo
 
 ## 5. Dicas
 
-- O **OpenPort (PDF)** é a fonte de verdade primária — os dados automáticos da balança prevalecem sobre a digitação manual do balanceiro
-- Uma mesma SEV (romaneio) pode ter múltiplas pesagens (entrada/saída). O sistema agrupa por SEV mantendo a maior pesagem
-- O sistema deduz automaticamente o produto de caminhões sem identificação na planilha, baseado no histórico da placa
+- O **OpenPort (PDF)** é a fonte de verdade primária — os dados automáticos da balança prevalecem sobre a digitação manual do balanceiro.
+- **Registros Individuais:** Cada linha do PDF é tratada como uma pesagem individual (sem agrupamento automático por SEV), garantindo que múltiplas viagens legítimas do mesmo caminhão no mesmo dia sejam integralmente auditadas.
+- O sistema deduz automaticamente o produto de caminhões sem identificação na planilha, baseado no histórico da placa.
 
 ---
 

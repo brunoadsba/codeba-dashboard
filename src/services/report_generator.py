@@ -14,7 +14,7 @@ from src.config import STATIC_DIR
 
 # ── Cores Institucionais ──────────────────────────────────────
 CODEBA_NAVY      = colors.HexColor("#0B1D3A")   # Azul marinho institucional
-CODEBA_BLUE      = colors.HexColor("#1E3A5F")   # Azul cabeçalho
+ZEBRA_ODD        = colors.HexColor("#F8FAFC")   # Zebra odd row
 SLATE_900        = colors.HexColor("#0F172A")
 SLATE_700        = colors.HexColor("#334155")
 SLATE_600        = colors.HexColor("#475569")
@@ -30,19 +30,22 @@ GREEN_50         = colors.HexColor("#F0FDF4")
 
 RED_700          = colors.HexColor("#B91C1C")
 RED_100          = colors.HexColor("#FEE2E2")
-RED_50           = colors.HexColor("#FEF2F2")
-
 AMBER_700        = colors.HexColor("#B45309")
 AMBER_100        = colors.HexColor("#FEF3C7")
-AMBER_50         = colors.HexColor("#FFFBEB")
 
-ORANGE_700       = colors.HexColor("#C2410C")
-ORANGE_100       = colors.HexColor("#FFEDD5")
-ORANGE_50        = colors.HexColor("#FFF7ED")
+# ── Cores Badges (Status) ────────────────────────────────────
+STATUS_ERRO_BG   = colors.HexColor("#FEF2F2")
+STATUS_ERRO_FG   = colors.HexColor("#B91C1C")
+STATUS_FALTA_BG  = colors.HexColor("#FFFBEB")
+STATUS_FALTA_FG  = colors.HexColor("#B45309")
 
-BLUE_700         = colors.HexColor("#1D4ED8")
-BLUE_100         = colors.HexColor("#DBEAFE")
-BLUE_50          = colors.HexColor("#EFF6FF")
+# ── Cores código/etiqueta ────────────────────────────────────
+CODE_TAG_BG      = colors.HexColor("#F1F5F9")
+
+# ── Cores pesos ──────────────────────────────────────────────
+PESOS_LABEL      = colors.HexColor("#64748B")
+PESOS_VALUE      = colors.HexColor("#0F172A")
+PESOS_SEP        = colors.HexColor("#E5E7EB")
 
 
 def format_kg(val: Any) -> str:
@@ -86,20 +89,6 @@ def get_periodo_str(ok_list: list[dict], div_list: list[dict]) -> str:
         return sorted_dates[0]
     return f"{sorted_dates[0]} a {sorted_dates[-1]}"
 
-
-# ── Cor de fundo por tipo de erro ─────────────────────────────
-def _row_color_for_status(status: str) -> tuple[colors.HexColor, colors.HexColor]:
-    """Retorna (cor_de_fundo, cor_de_texto) para o status de divergência."""
-    s = (status or "").strip().lower()
-    if "erro de placa" in s:
-        return RED_50, RED_700
-    elif "falta no excel" in s:
-        return AMBER_50, AMBER_700
-    elif "falta no pdf" in s:
-        return ORANGE_50, ORANGE_700
-    elif "diferença de peso" in s or "diferenca" in s:
-        return BLUE_50, BLUE_700
-    return colors.white, SLATE_700
 
 
 class NumberedCanvas(canvas.Canvas):
@@ -169,6 +158,12 @@ class NumberedCanvas(canvas.Canvas):
         self.setFont("Helvetica", 7.5)
         self.setFillColor(SLATE_500)
         self.drawString(30, 30, f"Data de Emissão: {emissao_str} (Horário de Ilhéus)")
+
+        integrity_hash = getattr(self, "_integrity_hash", "")
+        if integrity_hash:
+            self.setFont("Helvetica", 6.5)
+            self.setFillColor(SLATE_500)
+            self.drawString(30, 18, f"Hash de Integridade (SHA-256): {integrity_hash}")
 
         self.setFont("Helvetica", 7.5)
         self.setFillColor(SLATE_500)
@@ -254,8 +249,8 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
     # Timestamp de emissão (Bahia/Ilhéus - local do servidor)
     emissao_dt = datetime.now()
     emissao_str = emissao_dt.strftime("%d/%m/%Y %H:%M:%S")
-    file_timestamp = emissao_dt.strftime("%Y-%m-%d_%H-%M-%S")
-    filename = f"relatorio_executivo_auditoria_{file_timestamp}.pdf"
+    file_date = emissao_dt.strftime("%d-%m-%Y")
+    filename = f"Relatório_Executivo {file_date}.pdf"
 
     # Preparar buffer
     buffer = io.BytesIO()
@@ -314,7 +309,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
         fontSize=7.5,
         leading=10,
         textColor=colors.white,
-        alignment=TA_CENTER
+        alignment=TA_LEFT
     )
 
     td_style_center = ParagraphStyle(
@@ -386,104 +381,216 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
     story.append(Paragraph(intro_txt, body_style))
     story.append(Spacer(1, 4))
 
-    # Construir tabela de divergências
-    # Larguras das colunas: total ~535pt
-    div_col_widths = [80, 60, 60, 75, 75, 70, 40, 75.3]
+    # ── Construir tabela de divergências (8 colunas) ─────────────
+    # Larguras: total ~535pt (A4 - 60pt margens)
+    div_col_widths = [28, 42, 52, 55, 65, 100, 60, 133]
 
-    div_table_data = [
-        [
-            Paragraph("Data / Horário", th_style),
-            Paragraph("Placa Digitada<br/>(Excel)", th_style),
-            Paragraph("Placa Correta<br/>(OpenPort)", th_style),
-            Paragraph("Tipo do Erro", th_style),
-            Paragraph("Produto", th_style),
-            Paragraph("SEV", th_style),
-            Paragraph("PR", th_style),
-            Paragraph("Peso Bruto", th_style)
-        ]
-    ]
+    # Estilos
+    item_style = ParagraphStyle("ItemNum", fontName="Courier", fontSize=8, leading=10,
+                                textColor=colors.HexColor("#888780"), alignment=TA_LEFT)
+    sev_style = ParagraphStyle("SevCell", fontName="Courier", fontSize=8, leading=10,
+                               textColor=SLATE_700, alignment=TA_LEFT)
+    placa_style = ParagraphStyle("PlacaVal", fontName="Courier-Bold", fontSize=8.5, leading=11,
+                                 textColor=SLATE_900, alignment=TA_CENTER)
+    data_date_style = ParagraphStyle("DataDate", fontName="Helvetica", fontSize=8, leading=11,
+                                     textColor=SLATE_700, alignment=TA_LEFT)
+    data_time_style = ParagraphStyle("DataTime", fontName="Helvetica", fontSize=7, leading=9,
+                                     textColor=SLATE_500, alignment=TA_LEFT)
+    prod_style = ParagraphStyle("ProdCell", fontName="Helvetica", fontSize=8, leading=11,
+                                textColor=SLATE_700, alignment=TA_LEFT)
+    det_diag_style = ParagraphStyle("DetDiag", fontName="Helvetica", fontSize=8, leading=11,
+                                    textColor=SLATE_600, alignment=TA_LEFT)
+    det_corr_style = ParagraphStyle("DetCorr", fontName="Helvetica", fontSize=7.5, leading=10,
+                                    textColor=SLATE_500, alignment=TA_LEFT)
 
-    # Rastrear tipos de erro para o Plano de Ação
+    # Estilo coluna pesos (label + valor por coluna)
+    peso_col_style = ParagraphStyle("PesoCol", fontName="Helvetica", fontSize=7, leading=10,
+                                    textColor=PESOS_LABEL, alignment=TA_CENTER)
+
+    # Header
+    div_table_data = [[
+        Paragraph("Ítem", th_style),
+        Paragraph("SEV", th_style),
+        Paragraph("Placa", th_style),
+        Paragraph("Data", th_style),
+        Paragraph("Produto", th_style),
+        Paragraph("Pesos", th_style),
+        Paragraph("Status", th_style),
+        Paragraph("Detalhe", th_style),
+    ]]
+
     error_types_found = set()
 
-    for item in filtered_div:
+    for idx, item in enumerate(filtered_div):
         status = item.get("Status", "")
         error_types_found.add(status)
 
-        placa_excel = "—"
-        placa_pdf = "—"
+        # Ítem
+        item_cell = Paragraph(str(idx + 1).zfill(2), item_style)
 
-        if status == "Erro de Placa":
-            placa_excel = item.get("Placa_Excel", "")
-            placa_pdf = item.get("Placa_PDF", "")
-        elif status == "Falta no Excel":
-            placa_pdf = item.get("Placa", "")
-        elif status == "Falta no PDF":
-            placa_excel = item.get("Placa", "")
+        # SEV
+        sev_cell = Paragraph(item.get("SEV", "—") or "—", sev_style)
+
+        # Placa — tag sem borda (fundo cinza sutil)
+        placa_val = item.get("Placa", "—")
+        placa_tag = Table(
+            [[Paragraph(placa_val, placa_style)]],
+            colWidths=[div_col_widths[2] - 4],
+            style=[
+                ("BACKGROUND", (0, 0), (-1, -1), CODE_TAG_BG),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 2),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                ("LEFTPADDING", (0, 0), (-1, -1), 5),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+            ]
+        )
+
+        # Data — date + time em duas linhas
+        dt_raw = item.get("Data", "—")
+        if " " in dt_raw:
+            date_part, time_part = dt_raw.split(" ", 1)
         else:
-            placa_excel = item.get("Placa", "")
-            placa_pdf = item.get("Placa", "")
+            date_part, time_part = dt_raw, ""
+        date_parts = [[Paragraph(date_part, data_date_style)]]
+        if time_part:
+            date_parts.append([Paragraph(time_part, data_time_style)])
+        data_table = Table(date_parts, colWidths=[div_col_widths[3] - 2],
+                           style=[("TOPPADDING", (0, 0), (-1, -1), 1),
+                                  ("BOTTOMPADDING", (0, 0), (-1, -1), 1)])
 
-        prod = item.get("Produto", "") or ""
-        prod_clean = prod.replace(" (Deduzido)", "").upper()
+        # Produto
+        prod_raw = item.get("Produto", "") or ""
+        prod_clean = prod_raw.replace(" (Deduzido)", "").strip()
+        prod_cell = Paragraph(prod_clean, prod_style)
 
-        sev_val = item.get("SEV", "") or ""
-        pr = item.get("PR", "11050")
-        peso_bruto = format_kg(item.get("Peso Bruto"))
+        # Pesos — grid 3 colunas: label + valor, separador vertical
+        pb = item.get("Peso Bruto")
+        tara = item.get("Tara")
+        pl = item.get("Peso Liquido")
+        if pl is None:
+            pl = (pb or 0) - (tara or 0)
 
-        dt_str = item.get("Data", "—")
-        if dt_str and dt_str != "—" and ":" not in dt_str:
-            dt_str = f"{dt_str} (Excel)"
+        def _peso_block(label: str, val) -> str:
+            if val is None or pd.isna(val):
+                val_str = "—"
+            else:
+                try:
+                    val_str = f"{int(float(val)):,}".replace(",", ".")
+                except Exception:
+                    val_str = str(val)
+            return (
+                f'<font color="{PESOS_LABEL.hexval()}"><b>{label}</b></font>'
+                f'<br/>'
+                f'<font color="{PESOS_VALUE.hexval()}" size="9">{val_str}</font>'
+                f' <font color="{PESOS_LABEL.hexval()}" size="7">kg</font>'
+            )
 
-        # Cor do badge de status
-        _, status_color = _row_color_for_status(status)
-        status_style = _status_para_style(status_color)
-
-        row = [
-            Paragraph(dt_str, td_style_center),
-            Paragraph(placa_excel, td_style_center),
-            Paragraph(placa_pdf, td_style_green_center if placa_pdf != "—" else td_style_center),
-            Paragraph(status, status_style),
-            Paragraph(prod_clean, td_style_left),
-            Paragraph(sev_val, td_style_center),
-            Paragraph(pr, td_style_center),
-            Paragraph(peso_bruto, td_style_right)
+        pesos_row = [
+            Paragraph(_peso_block("BRUTO", pb), peso_col_style),
+            Paragraph(_peso_block("TARA", tara), peso_col_style),
+            Paragraph(_peso_block("LÍQ.", pl), peso_col_style),
         ]
+        pesos_table = Table(
+            [pesos_row],
+            colWidths=[div_col_widths[5] / 3] * 3,
+            style=[
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("LINEAFTER", (0, 0), (0, -1), 0.5, PESOS_SEP),
+                ("LINEAFTER", (1, 0), (1, -1), 0.5, PESOS_SEP),
+                ("TOPPADDING", (0, 0), (-1, -1), 2),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ]
+        )
+
+        # Status — badge consistente
+        s = (status or "").strip().lower()
+        if "erro de placa" in s:
+            badge_bg, badge_fg = STATUS_ERRO_BG, STATUS_ERRO_FG
+        elif "falta no excel" in s:
+            badge_bg, badge_fg = STATUS_FALTA_BG, STATUS_FALTA_FG
+        else:
+            badge_bg, badge_fg = STATUS_ERRO_BG, STATUS_ERRO_FG
+
+        badge_style = ParagraphStyle("Badge", fontName="Helvetica-Bold", fontSize=7, leading=9,
+                                     textColor=badge_fg, alignment=TA_CENTER)
+        badge_table = Table(
+            [[Paragraph(status, badge_style)]],
+            colWidths=[div_col_widths[6] - 2],
+            style=[
+                ("BACKGROUND", (0, 0), (-1, -1), badge_bg),
+                ("BOX", (0, 0), (-1, -1), 0.5, badge_fg),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 2),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ]
+        )
+
+        # Detalhe — 2 níveis com hierarquia
+        placa_excel = item.get("Placa_Excel", "")
+        placa_pdf = item.get("Placa_PDF", "")
+        linha_erro = item.get("linha_erro_data", "")
+        aba_erro = item.get("aba_erro_data", "")
+        arquivo_erro = item.get("arquivo_erro_data", "")
+        data_errada = item.get("data_errada_excel", "")
+
+        if placa_excel and placa_pdf:
+            diag = Paragraph("Placa digitada incorretamente.", det_diag_style)
+            corr = Paragraph(
+                f'<font color="#94A3B8">{placa_excel}</font>'
+                f' <font color="#64748B">→</font> '
+                f'<font face="Courier" color="#0F172A" backcolor="#F1F5F9">{placa_pdf}</font>',
+                det_corr_style
+            )
+            detalhe_rows = [[diag], [corr]]
+        elif linha_erro:
+            diag = Paragraph("Registro no PDF sem correspondência na planilha.", det_diag_style)
+            nota = (
+                f"Linha {linha_erro}"
+                + (f" (Aba '{aba_erro}')" if aba_erro else "")
+                + (f" de {arquivo_erro}" if arquivo_erro else "")
+                + (f" com data {data_errada}." if data_errada else ".")
+            )
+            nota_style = ParagraphStyle("DetNota", fontName="Helvetica", fontSize=7, leading=9,
+                                        textColor=SLATE_500, alignment=TA_LEFT)
+            detalhe_rows = [[diag], [Paragraph(nota, nota_style)]]
+        else:
+            diag = Paragraph(item.get("Detalhe", "") or "", det_diag_style)
+            detalhe_rows = [[diag]]
+
+        detalhe_inner = Table(detalhe_rows, colWidths=[div_col_widths[7] - 2],
+                              style=[("TOPPADDING", (0, 0), (-1, -1), 1),
+                                     ("BOTTOMPADDING", (0, 0), (-1, -1), 1)])
+
+        row = [item_cell, sev_cell, placa_tag, data_table, prod_cell,
+               pesos_table, badge_table, detalhe_inner]
         div_table_data.append(row)
 
     if num_div == 0:
-        row_empty = [
-            Paragraph("—", td_style_center),
-            Paragraph("—", td_style_center),
-            Paragraph("—", td_style_center),
-            Paragraph("—", td_style_center),
-            Paragraph("Nenhuma divergência encontrada", td_style_left),
-            Paragraph("—", td_style_center),
-            Paragraph("—", td_style_center),
-            Paragraph("—", td_style_center)
-        ]
-        div_table_data.append(row_empty)
+        empty_p = Paragraph("—", td_style_center)
+        div_table_data.append([empty_p for _ in range(8)])
 
     # Estilização da Tabela de Divergências
     div_t_style = TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), CODEBA_BLUE),
+        ("BACKGROUND", (0, 0), (-1, 0), SLATE_900),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("ALIGN", (0, 0), (-1, 0), "CENTER"),
         ("INNERGRID", (0, 0), (-1, -1), 0.4, SLATE_200),
         ("BOX", (0, 0), (-1, -1), 0.6, SLATE_300),
         ("TOPPADDING", (0, 0), (-1, -1), 5),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
         ("LEFTPADDING", (0, 0), (-1, -1), 4),
         ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        # Zebra striping sutil
+        *[("BACKGROUND", (0, i + 1), (-1, i + 1),
+           ZEBRA_ODD if i % 2 == 1 else colors.white)
+          for i in range(len(filtered_div))],
     ])
 
-    # Aplicar cores de fundo por tipo de erro
-    for i, item in enumerate(filtered_div):
-        row_idx = i + 1  # +1 pois header é 0
-        bg_color, _ = _row_color_for_status(item.get("Status", ""))
-        div_t_style.add("BACKGROUND", (0, row_idx), (-1, row_idx), bg_color)
-
-    # Se não teve divergências, fundo branco na linha vazia
     if num_div == 0:
         div_t_style.add("BACKGROUND", (0, 1), (-1, 1), SLATE_50)
 
@@ -635,16 +742,11 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
                 bullet_style
             ))
 
-        # Recomendação geral sempre presente
-        story.append(Spacer(1, 4))
-        story.append(Paragraph(
-            "• <b>Acompanhamento Contínuo:</b> Recomenda-se a emissão periódica deste relatório para "
-            "monitoramento da evolução dos indicadores e garantia da qualidade dos dados operacionais.",
-            bullet_style
-        ))
+
 
     # Injetar variáveis de instância no canvasmaker personalizado
-    canvasmaker = make_canvas_maker(periodo_str, emissao_str)
+    integrity_hash = payload.get("integrity_hash", "")
+    canvasmaker = make_canvas_maker(periodo_str, emissao_str, integrity_hash)
 
     # Build PDF
     doc.build(story, canvasmaker=canvasmaker)
@@ -653,10 +755,11 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
     buffer.close()
     return pdf_bytes, filename
 
-def make_canvas_maker(periodo_str: str, emissao_str: str):
+def make_canvas_maker(periodo_str: str, emissao_str: str, integrity_hash: str):
     class CustomNumberedCanvas(NumberedCanvas):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
             self._periodo_str = periodo_str
             self._emissao_str = emissao_str
+            self._integrity_hash = integrity_hash
     return CustomNumberedCanvas

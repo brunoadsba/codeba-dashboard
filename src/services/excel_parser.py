@@ -22,13 +22,18 @@ def process_excel_file(file_path):
                     if df_raw.empty:
                         continue
 
-                    # Header Hunting: Procurar dinamicamente nas primeiras 20 linhas
+                    # Header Hunting: Procurar dinamicamente nas primeiras 50 linhas
                     header_idx = None
                     pr_val = None
-                    for idx, row in df_raw.head(20).iterrows():
+                    first_50 = list(df_raw.head(50).iterrows())
+                    # Loop 1: Encontrar o header (com break ao achar)
+                    for idx, row in first_50:
                         row_str = ' '.join(str(val).upper() for val in row.values)
                         if 'PLACA' in row_str and ('PESO' in row_str or 'DATA' in row_str):
                             header_idx = idx
+                            break
+                    # Loop 2: Continuar procurando PR em todas as 50 linhas
+                    for idx, row in first_50:
                         for val in row.values:
                             val_str = str(val).upper().strip()
                             if 'RSP:' in val_str:
@@ -51,23 +56,37 @@ def process_excel_file(file_path):
 
                     df_data = df_raw.iloc[header_idx+1:].copy()
                     df_data.columns = df_raw.iloc[header_idx]
+                    # Salvar a linha original (1-based no Excel) e a aba antes do reset_index
+                    df_data['Linha'] = df_data.index + 1
+                    df_data['Aba'] = sheet_name
                     df_data = df_data.reset_index(drop=True)
                     df_data = df_data.dropna(axis=1, how='all')
 
-                    # Mapeamento dinâmico de colunas
+                    # Mapeamento dinâmico de colunas (garantindo chaves únicas)
                     col_map = {}
                     for col in df_data.columns:
                         col_str = str(col).upper().strip()
                         if 'PLACA' in col_str and 'OBS' not in col_str:
-                            col_map[col] = 'Placa'
+                            if 'Placa' not in col_map.values():
+                                col_map[col] = 'Placa'
                         elif 'DATA' in col_str:
-                            col_map[col] = 'Data'
+                            if 'Data' not in col_map.values():
+                                col_map[col] = 'Data'
+                            elif 'PESAGEM' in col_str:
+                                # Se já mapeou outra data mas a atual é especificamente 'PESAGEM', substitui
+                                for k, v in list(col_map.items()):
+                                    if v == 'Data':
+                                        del col_map[k]
+                                col_map[col] = 'Data'
                         elif 'PESO' in col_str and 'BRUTO' in col_str:
-                            col_map[col] = 'Peso Bruto'
+                            if 'Peso Bruto' not in col_map.values():
+                                col_map[col] = 'Peso Bruto'
                         elif 'TARA' in col_str:
-                            col_map[col] = 'Tara'
+                            if 'Tara' not in col_map.values():
+                                col_map[col] = 'Tara'
                         elif 'PESO' in col_str and ('LIQUIDO' in col_str or 'LÍQUIDO' in col_str):
-                            col_map[col] = 'Peso Liquido'
+                            if 'Peso Liquido' not in col_map.values():
+                                col_map[col] = 'Peso Liquido'
 
                     df_data = df_data.rename(columns=col_map)
 
@@ -75,7 +94,7 @@ def process_excel_file(file_path):
                     if not keep_cols or 'Placa' not in keep_cols:
                         continue
 
-                    df_data = df_data[keep_cols]
+                    df_data = df_data[keep_cols + ['Linha', 'Aba']]
 
                     # Limpar Placa
                     df_data['Placa'] = df_data['Placa'].apply(clean_placa)
@@ -96,7 +115,11 @@ def process_excel_file(file_path):
 
                     # Data
                     if 'Data' in df_data.columns:
+                        datas_antes = df_data['Data'].notna().sum()
                         df_data['Data'] = pd.to_datetime(df_data['Data'], errors='coerce', dayfirst=True)
+                        datas_rejeitadas = datas_antes - df_data['Data'].notna().sum()
+                        if datas_rejeitadas > 0:
+                            logger.warning("Sheet '%s': %d data(s) inválida(s) ignorada(s)", sheet_name, datas_rejeitadas)
 
                     df_data['Produto'] = produto_from_file
                     df_data['Fonte'] = 'Excel'
@@ -108,7 +131,10 @@ def process_excel_file(file_path):
                     continue
 
         if all_data:
-            return pd.concat(all_data, ignore_index=True)
+            df_result = pd.concat(all_data, ignore_index=True)
+            logger.info("Excel: %d registro(s) extraído(s) de %d sheet(s)", len(df_result), len(all_data))
+            return df_result
+        logger.warning("Excel: Nenhum registro extraído do arquivo")
         return pd.DataFrame()
     except Exception as e:
         logger.error(f"Erro Excel: {e}\n{traceback.format_exc()}")

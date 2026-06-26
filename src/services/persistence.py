@@ -56,7 +56,8 @@ def save_audit_run(
     created_at = datetime.now(timezone.utc).isoformat()
     ok_list = result.get("ok", [])
     div_list = result.get("divergencias", [])
-    period_start, period_end = compute_period_bounds(ok_list, div_list)
+    notas_info = result.get("notas_informativas", [])
+    period_start, period_end = compute_period_bounds(ok_list, div_list, notas_info)
     resumo = result.get("resumo", {})
 
     with sqlite3.connect(db_path) as conn:

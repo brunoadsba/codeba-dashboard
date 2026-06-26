@@ -115,11 +115,13 @@ function getProductColor(produto) {
 function applyFilters(data, filters = filterState) {
     let filteredOk = data.ok || [];
     let filteredDiv = data.divergencias || [];
+    let filteredIncompletas = data.notas_informativas || [];
     let volumeRecords = (data.volume && data.volume.records) ? [...data.volume.records] : [];
 
     if (filters.dateStart || filters.dateEnd) {
         filteredOk = filteredOk.filter(i => isDateInRange(i.Data, filters.dateStart, filters.dateEnd));
         filteredDiv = filteredDiv.filter(i => isDateInRange(i.Data, filters.dateStart, filters.dateEnd));
+        filteredIncompletas = filteredIncompletas.filter(i => isDateInRange(i.Data, filters.dateStart, filters.dateEnd));
         volumeRecords = volumeRecords.filter(r => isDateInRange(r.data, filters.dateStart, filters.dateEnd));
     } else if (filters.date) {
         const [y, m, d] = filters.date.split('-');
@@ -127,6 +129,7 @@ function applyFilters(data, filters = filterState) {
             const brDate = `${d}/${m}/${y}`;
             filteredOk = filteredOk.filter(i => i.Data === brDate);
             filteredDiv = filteredDiv.filter(i => i.Data === brDate);
+            filteredIncompletas = filteredIncompletas.filter(i => i.Data === brDate);
             volumeRecords = volumeRecords.filter(r => r.data === brDate);
         }
     }
@@ -136,6 +139,7 @@ function applyFilters(data, filters = filterState) {
         if (q.length > 0) {
             filteredOk = filteredOk.filter(i => (i.Placa || '').toUpperCase().includes(q));
             filteredDiv = filteredDiv.filter(i => (i.Placa || '').toUpperCase().includes(q));
+            filteredIncompletas = filteredIncompletas.filter(i => (i.Placa || '').toUpperCase().includes(q));
             volumeRecords = volumeRecords.filter(r => (r.placa || '').toUpperCase().includes(q));
         }
     }
@@ -143,6 +147,7 @@ function applyFilters(data, filters = filterState) {
     if (filters.produto) {
         filteredOk = filteredOk.filter(i => normalizeProductName(i.Produto) === filters.produto);
         filteredDiv = filteredDiv.filter(i => normalizeProductName(i.Produto) === filters.produto);
+        filteredIncompletas = filteredIncompletas.filter(i => normalizeProductName(i.Produto) === filters.produto);
         volumeRecords = volumeRecords.filter(r => r.produto === filters.produto);
     }
 
@@ -150,7 +155,7 @@ function applyFilters(data, filters = filterState) {
         volumeRecords = volumeRecords.filter(r => r.is_ok);
     }
 
-    return { filteredOk, filteredDiv, filteredVolume: volumeRecords };
+    return { filteredOk, filteredDiv, filteredIncompletas, filteredVolume: volumeRecords };
 }
 
 function aggregateVolume(records, bucketByWeek = false) {

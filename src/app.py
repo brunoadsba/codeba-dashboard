@@ -94,11 +94,15 @@ async def api_get_run_report(
 
     try:
         pdf_bytes, filename = generate_pdf_report(payload, filters)
+        import urllib.parse
+        filename_ascii = filename.replace("ó", "o").replace("Ó", "O")
+        filename_quoted = urllib.parse.quote(filename)
+        content_disposition = f'attachment; filename="{filename_ascii}"; filename*=utf-8\'\'{filename_quoted}'
         return StreamingResponse(
             io.BytesIO(pdf_bytes),
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f'attachment; filename="{filename}"'
+                "Content-Disposition": content_disposition
             }
         )
     except Exception as e:
@@ -163,9 +167,10 @@ async def upload_files(files: List[UploadFile] = File(...)):
 
             if ext in {'.xlsx', '.xls'}:
                 df = process_excel_file(file_path)
-                # Preservar o nome original para extrair o produto
+                # Preservar o nome original para extrair o produto e manter o nome do arquivo
                 if not df.empty:
                     df['Produto'] = extract_produto_from_filename(original_name)
+                    df['Arquivo'] = original_name
 
                 if not df.empty:
                     dfs_excel.append(df)
@@ -190,7 +195,17 @@ async def upload_files(files: List[UploadFile] = File(...)):
         df_ex = pd.concat(dfs_excel, ignore_index=True) if dfs_excel else pd.DataFrame()
         df_p = pd.concat(dfs_pdf, ignore_index=True) if dfs_pdf else pd.DataFrame()
 
-        result = reconcile_data(df_ex, df_p)
+        logger.info("Arquivos: %d Excel(s), %d PDF(s) → %d registros totais",
+                     len(dfs_excel), len(dfs_pdf), len(df_ex) + len(df_p))
+
+        # Extrair produtos únicos enviados (da coluna Produto de cada Excel)
+        produtos_enviados = sorted(set(
+            row['Produto'] for df_ in dfs_excel
+            for _, row in df_.iterrows()
+            if row.get('Produto')
+        )) if dfs_excel else []
+
+        result = reconcile_data(df_ex, df_p, produtos_enviados=produtos_enviados)
 
         if "error" in result:
             return JSONResponse(

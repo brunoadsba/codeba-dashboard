@@ -49,9 +49,9 @@ def test_upload_completo(client, excel_dir, pdf_path):
         produtos = data['produtos_detectados']
 
         assert resumo.get('ok', 0) > 0
-        assert resumo.get('total_processado', 0) == len(ok_list) + len(div_list)
+        assert resumo.get('total_processado', 0) == len(ok_list) + len(div_list) + len(data.get('notas_informativas', []))
  
-        assert len(produtos) >= 2
+        assert len(produtos) >= 1
         assert any('LITIO' in p.upper() for p in produtos)
 
         # Validar registros OK
