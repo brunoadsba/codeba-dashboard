@@ -1,6 +1,6 @@
-# CODEBA — Dashboard de Auditoria de Pesagens (v4.0.0)
+# CODEBA — Dashboard de Auditoria de Pesagens (v5.4.0)
 
-Este projeto realiza a **conciliação e auditoria de pesagens rodoviárias** comparando as planilhas da CODEBA (origem Excel, digitação manual do balanceiro) com os registros do OpenPort (PDF, pesagem automática). Ele identifica automaticamente divergências de peso, placas digitadas incorretamente no Excel, deduz o produto com base no histórico do caminhão e gera relatórios analíticos com gráficos de volume.
+Este projeto realiza a **conciliação e auditoria de pesagens rodoviárias** comparando as planilhas da CODEBA (origem Excel, digitação manual do balanceiro) com os registros do OpenPort (PDF, pesagem automática). Ele identifica automaticamente divergências de peso, placas digitadas incorretamente no Excel, deduz o produto com base no histórico do caminhão e gera relatórios analíticos com gráficos de volume e relatório executivo PDF.
 
 ---
 
@@ -9,11 +9,17 @@ Este projeto realiza a **conciliação e auditoria de pesagens rodoviárias** co
 - **Upload multi-arquivo:** Arraste planilhas `.xlsx` + relatório OpenPort `.pdf` de uma vez
 - **Conciliação automática:** cruza pesagens do Excel com o PDF, aponta OK vs divergências
 - **Desduplicação inteligente:** remove registros duplicados do OpenPort antes da análise
+- **Pesagens Incompletas:** detecta e isola registros com Tara=0 em seção dedicada
+- **Erro de Data (Typo):** detecta digitação errada de data no Excel comparando placa+pesos
+- **Hash SHA-256:** assinatura de integridade dos dados auditados no relatório PDF
 - **Analytics dinâmico:** gráficos de barras empilhadas (toneladas por produto/data), donut de distribuição e KPIs
 - **Filtros reativos:** período (Flatpickr com presets), placa (debounce), produto, toggle auditado/total
 - **Agrupamento semanal:** para períodos > 90 dias, eixo X agrupa por semana
 - **Histórico persistente:** cada auditoria salva em SQLite, consultável e recarregável
-- **Relatório PDF:** download com filtros ativos aplicados
+- **Relatório PDF Executivo:** relatório com legenda de cores, contadores de erro, barra de conformidade, resumo por produto e campo de assinatura
+- **Tabela 7 colunas:** ÍTEM | SEV | PLACA | DATA/HORA | PRODUTO | PESOS | STATUS
+- **Painel expansível inline:** cards de Erro e Contexto com ações rápidas
+- **Feedback não implementado:** Toast/Modal para ações em desenvolvimento com dimming visual
 - **Temas Claro/Escuro** com identidade visual CODEBA
 - **Suporte a Tela 7714** do OpenPort (novo formato de relatório)
 
@@ -69,11 +75,24 @@ operacao/
 │   ├── test_analytics.py       # Normalização produto, volume, período
 │   ├── test_persistence.py     # CRUD do SQLite
 │   ├── test_report.py          # Geração de relatório PDF
-│   └── test_deduplication.py   # Desduplicação de pesagens
+│   ├── test_deduplication.py   # Desduplicação de pesagens
+│   ├── test_date_typo.py       # Detecção de erro de digitação de data
+│   ├── test_history_hint.py    # Injeção de flag de viagens OK no dia
+│   ├── test_incomplete_weighings.py  # Pesagens incompletas (Tara=0)
+│   ├── test_integrity.py       # Hash SHA-256 e registros descartados
+│   └── test_recorte_aviso.py   # Validação de corte de período
 │
 ├── scratch/                    # Scripts de teste standalone (offline)
 │   ├── run_e2e_tests.py
-│   └── run_all_tests.py
+│   ├── run_all_tests.py
+│   ├── examine_db.py
+│   ├── examine_excel_nickel.py
+│   ├── fast_xlsx_search.py
+│   ├── find_niquel_files.py
+│   ├── find_rpj.py
+│   ├── read_transcript.py
+│   ├── search_all_fixtures.py
+│   └── search_rpj_wildcard.py
 │
 ├── scripts/
 │   └── rpa_codeba.py           # Robô RPA (Playwright) para download do relatório
@@ -83,7 +102,10 @@ operacao/
 │   ├── guia.md                 # Guia do usuário
 │   ├── automacao.md            # Roteiro do RPA
 │   ├── dados-openport.md       # Contexto dos dados OpenPort
-│   └── ideia.md                # Concepção original
+│   ├── ideia.md                # Concepção original
+│   ├── ajustes.md              # Plano de correções do motor de conciliação
+│   ├── erros.md                # Relatório de erros e status
+│   └── plano_correcao.md       # Plano detalhado de correções
 │
 ├── logs/                       # Logs de execução
 └── temp_uploads/               # Arquivos temporários de upload
@@ -123,7 +145,7 @@ Acesse **http://localhost:8000**
 python -m pytest tests/ -v
 ```
 
-23 testes cobrindo upload E2E, analytics, persistência, relatório PDF e desduplicação.
+40 testes cobrindo upload E2E, analytics, persistência, relatório PDF, desduplicação, date_typo, history_hint, incomplete_weighings, integrity e recorte_aviso.
 
 ---
 
