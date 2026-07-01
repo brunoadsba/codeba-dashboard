@@ -397,14 +397,14 @@ function animateCounter(element, targetValue, duration = 800) {
 
 // ── Determine error badge class ─────────────────────────────
 function getErrorBadgeClass(status) {
-    if (!status) return 'badge-danger';
+    if (!status) return 'badge-falta-pdf';
     const s = status.toLowerCase();
-    if (s.includes('incompleta')) return 'badge-warning';
-    if (s.includes('erro de placa')) return 'badge-warning';
-    if (s.includes('diferença') || s.includes('peso')) return 'badge-warning';
-    if (s.includes('falta no pdf')) return 'badge-danger';
-    if (s.includes('falta no excel')) return 'badge-danger';
-    return 'badge-danger';
+    if (s.includes('incompleta')) return 'badge-incompleta';
+    if (s.includes('erro de placa')) return 'badge-erro-placa';
+    if (s.includes('diferença') || s.includes('peso')) return 'badge-diferenca-peso';
+    if (s.includes('falta no pdf')) return 'badge-falta-pdf';
+    if (s.includes('falta no excel')) return 'badge-falta-excel';
+    return 'badge-falta-pdf';
 }
 
 function getErrorIcon(status) {
@@ -414,7 +414,7 @@ function getErrorIcon(status) {
     if (s.includes('erro de placa')) return 'ph-identification-card';
     if (s.includes('diferença') || s.includes('peso')) return 'ph-scales';
     if (s.includes('falta no pdf')) return 'ph-file-pdf';
-    if (s.includes('falta no excel')) return 'ph-eye-slash';
+    if (s.includes('falta no excel')) return 'ph-file-x';
     return 'ph-warning-circle';
 }
 

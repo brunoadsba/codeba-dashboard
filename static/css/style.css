@@ -1123,6 +1123,37 @@ body {
     color: var(--info);
 }
 
+/* Cores específicas de auditoria */
+.badge-erro-placa {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.badge-falta-excel {
+    background: rgba(245, 158, 11, 0.12);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.badge-falta-pdf {
+    background: rgba(59, 130, 246, 0.12);
+    color: #3b82f6;
+    border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.badge-diferenca-peso {
+    background: rgba(249, 115, 22, 0.12);
+    color: #fb923c;
+    border: 1px solid rgba(249, 115, 22, 0.25);
+}
+
+.badge-incompleta {
+    background: rgba(148, 163, 184, 0.12);
+    color: #cbd5e1;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
 /* Pulse animation for danger badge when has issues */
 @keyframes pulse-danger {
     0%, 100% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.4); }
@@ -1235,11 +1266,35 @@ body {
 
 .divergencias-table .col-status,
 .divergencias-table td:nth-child(7) {
-    width: 12%;
-    min-width: 100px;
-    max-width: 150px;
-    flex-grow: 0;
+    width: 16%;
+    min-width: 170px;
+}
+
+/* Status cell container — badge + chevron */
+.status-cell-container {    
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.status-cell-container .badge {
+    white-space: normal;
+    line-height: 1.3;
+}
+
+.chevron-icon {
     flex-shrink: 0;
+    font-size: 14px;
+    color: var(--text-tertiary);
+    transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.divergencia-row.expanded .chevron-icon {
+    transform: rotate(180deg);
+}
+
+.divergencia-row:hover .chevron-icon {
+    color: var(--text-primary);
 }
 
 /* Peso formatting in Pesos column */
@@ -2588,6 +2643,13 @@ body {
 .detail-row {
     background-color: rgba(0, 0, 0, 0.12) !important;
 }
+.detail-row td {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    overflow: visible !important;
+    white-space: normal !important;
+}
 .light-theme .detail-row {
     background-color: rgba(0, 0, 0, 0.02) !important;
 }
@@ -2595,6 +2657,7 @@ body {
     padding: var(--space-4) var(--space-5);
     border-bottom: 1px solid var(--border);
     animation: slideDown var(--duration-normal) var(--ease-out) forwards;
+    width: 100%;
 }
 @keyframes slideDown {
     from { opacity: 0; transform: translateY(-8px); }
@@ -2624,7 +2687,8 @@ body {
     gap: var(--space-3);
     flex: 1;
     min-width: 0;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: visible;
     transition: border-color var(--duration-fast) var(--ease-out);
 }
 .card-error {
@@ -2649,6 +2713,9 @@ body {
     margin: 0;
     overflow-wrap: break-word;
     word-break: break-word;
+    white-space: normal;
+    max-width: 100%;
+    width: 100%;
 }
 .card-description strong {
     color: var(--text-primary);

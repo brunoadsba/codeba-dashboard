@@ -62,3 +62,6 @@ data/*.xls
 data/*.pdf
 data/relatório/
 data/implementação/
+
+# Relatórios PDF gerados pelo sistema
+relatorio-pdf/

@@ -8,7 +8,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.pdfgen import canvas
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from src.config import STATIC_DIR
 
@@ -36,8 +36,10 @@ AMBER_100        = colors.HexColor("#FEF3C7")
 # ── Cores Badges (Status) ────────────────────────────────────
 STATUS_ERRO_BG   = colors.HexColor("#FEF2F2")
 STATUS_ERRO_FG   = colors.HexColor("#B91C1C")
-STATUS_FALTA_BG  = colors.HexColor("#FFFBEB")
-STATUS_FALTA_FG  = colors.HexColor("#B45309")
+STATUS_FALTA_EXCEL_BG  = colors.HexColor("#FFFBEB")
+STATUS_FALTA_EXCEL_FG  = colors.HexColor("#B45309")
+STATUS_FALTA_PDF_BG = colors.HexColor("#EFF6FF")
+STATUS_FALTA_PDF_FG = colors.HexColor("#1D4ED8")
 
 # ── Cores código/etiqueta ────────────────────────────────────
 CODE_TAG_BG      = colors.HexColor("#F1F5F9")
@@ -133,9 +135,11 @@ class NumberedCanvas(canvas.Canvas):
             self.drawImage(str(logo_path), logo_x, logo_y, width=logo_w, height=logo_h, mask="auto")
 
         # ── 3. Título na faixa ────────────────────────────────────
+        has_div = getattr(self, "_has_divergencias", True)
+        title_text = "Relatório de Não Conformidade" if has_div else "Relatório de Conformidade"
         self.setFillColor(colors.white)
         self.setFont("Helvetica-Bold", 16)
-        self.drawString(170, bar_y + 38, "Relatório de Não Conformidade")
+        self.drawString(170, bar_y + 38, title_text)
 
         periodo_str = getattr(self, "_periodo_str", "—")
         self.setFillColor(colors.HexColor("#94A3B8"))  # Slate 400
@@ -306,17 +310,17 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
     th_style = ParagraphStyle(
         "TableHeader",
         fontName="Helvetica-Bold",
-        fontSize=7.5,
-        leading=10,
+        fontSize=8,
+        leading=11,
         textColor=colors.white,
-        alignment=TA_LEFT
+        alignment=TA_CENTER
     )
 
     td_style_center = ParagraphStyle(
         "TableCellCenter",
         fontName="Helvetica",
-        fontSize=7.5,
-        leading=10,
+        fontSize=8,
+        leading=11,
         textColor=SLATE_700,
         alignment=TA_CENTER
     )
@@ -324,8 +328,8 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
     td_style_green_center = ParagraphStyle(
         "TableCellGreenCenter",
         fontName="Helvetica-Bold",
-        fontSize=7.5,
-        leading=10,
+        fontSize=8,
+        leading=11,
         textColor=GREEN_700,
         alignment=TA_CENTER
     )
@@ -333,8 +337,8 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
     td_style_left = ParagraphStyle(
         "TableCellLeft",
         fontName="Helvetica",
-        fontSize=7.5,
-        leading=10,
+        fontSize=8,
+        leading=11,
         textColor=SLATE_700,
         alignment=TA_LEFT
     )
@@ -342,8 +346,8 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
     td_style_right = ParagraphStyle(
         "TableCellRight",
         fontName="Helvetica",
-        fontSize=7.5,
-        leading=10,
+        fontSize=8,
+        leading=11,
         textColor=SLATE_700,
         alignment=TA_RIGHT
     )
@@ -381,21 +385,77 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
     story.append(Paragraph(intro_txt, body_style))
     story.append(Spacer(1, 4))
 
+    # Legenda de cores removida — a informação de status já está presente
+    # nos badges da coluna "Status" de cada linha da tabela.
+
+    if num_div > 0:
+        # ── Contadores por Tipo de Erro ───────────────────────────
+        error_counts = {}
+        for item in filtered_div:
+            s = item.get("Status", "")
+            error_counts[s] = error_counts.get(s, 0) + 1
+
+        count_label_style = ParagraphStyle(
+            "CountLabel", fontName="Helvetica", fontSize=8,
+            leading=10, textColor=SLATE_500, alignment=TA_CENTER
+        )
+        count_value_style = ParagraphStyle(
+            "CountValue", fontName="Helvetica-Bold", fontSize=14,
+            leading=18, textColor=SLATE_900, alignment=TA_CENTER
+        )
+
+        erro_placa_n = error_counts.get("Erro de Placa", 0)
+        falta_excel_n = error_counts.get("Falta no Excel", 0)
+        falta_pdf_n = error_counts.get("Falta no PDF", 0)
+
+        counter_data = [
+            [
+                Paragraph("Erro de Placa", count_label_style),
+                Paragraph("Falta no Excel", count_label_style),
+                Paragraph("Falta no PDF", count_label_style),
+                Paragraph("Total", count_label_style),
+            ],
+            [
+                Paragraph(str(erro_placa_n), ParagraphStyle("CV1", parent=count_value_style, textColor=STATUS_ERRO_FG)),
+                Paragraph(str(falta_excel_n), ParagraphStyle("CV2", parent=count_value_style, textColor=STATUS_FALTA_EXCEL_FG)),
+                Paragraph(str(falta_pdf_n), ParagraphStyle("CV3", parent=count_value_style, textColor=STATUS_FALTA_PDF_FG)),
+                Paragraph(str(num_div), count_value_style),
+            ]
+        ]
+
+        counter_col_w = [535.3 / 4] * 4
+        counter_style = TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), SLATE_50),
+            ("BOX", (0, 0), (-1, -1), 0.5, SLATE_300),
+            ("INNERGRID", (0, 0), (-1, -1), 0.3, SLATE_200),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, 0), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 2),
+            ("TOPPADDING", (0, 1), (-1, 1), 2),
+            ("BOTTOMPADDING", (0, 1), (-1, 1), 8),
+        ])
+
+        counter_table = Table(counter_data, colWidths=counter_col_w, style=counter_style)
+        story.append(counter_table)
+        story.append(Spacer(1, 10))
+
     # ── Construir tabela de divergências (8 colunas) ─────────────
     # Larguras: total ~535pt (A4 - 60pt margens)
-    div_col_widths = [28, 42, 52, 55, 65, 100, 60, 133]
+    # Pesos (kg) ampliado de 100 para 130pt para evitar quebra de valores
+    div_col_widths = [26, 38, 52, 52, 60, 130, 56, 121]
 
     # Estilos
-    item_style = ParagraphStyle("ItemNum", fontName="Courier", fontSize=8, leading=10,
-                                textColor=colors.HexColor("#888780"), alignment=TA_LEFT)
-    sev_style = ParagraphStyle("SevCell", fontName="Courier", fontSize=8, leading=10,
-                               textColor=SLATE_700, alignment=TA_LEFT)
-    placa_style = ParagraphStyle("PlacaVal", fontName="Courier-Bold", fontSize=8.5, leading=11,
+    item_style = ParagraphStyle("ItemNum", fontName="Helvetica", fontSize=8, leading=11,
+                                textColor=SLATE_500, alignment=TA_CENTER)
+    sev_style = ParagraphStyle("SevCell", fontName="Helvetica", fontSize=8, leading=11,
+                               textColor=SLATE_700, alignment=TA_CENTER)
+    placa_style = ParagraphStyle("PlacaVal", fontName="Helvetica-Bold", fontSize=8, leading=11,
                                  textColor=SLATE_900, alignment=TA_CENTER)
     data_date_style = ParagraphStyle("DataDate", fontName="Helvetica", fontSize=8, leading=11,
-                                     textColor=SLATE_700, alignment=TA_LEFT)
+                                     textColor=SLATE_700, alignment=TA_CENTER)
     data_time_style = ParagraphStyle("DataTime", fontName="Helvetica", fontSize=7, leading=9,
-                                     textColor=SLATE_500, alignment=TA_LEFT)
+                                     textColor=SLATE_500, alignment=TA_CENTER)
     prod_style = ParagraphStyle("ProdCell", fontName="Helvetica", fontSize=8, leading=11,
                                 textColor=SLATE_700, alignment=TA_LEFT)
     det_diag_style = ParagraphStyle("DetDiag", fontName="Helvetica", fontSize=8, leading=11,
@@ -404,7 +464,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
                                     textColor=SLATE_500, alignment=TA_LEFT)
 
     # Estilo coluna pesos (label + valor por coluna)
-    peso_col_style = ParagraphStyle("PesoCol", fontName="Helvetica", fontSize=7, leading=10,
+    peso_col_style = ParagraphStyle("PesoCol", fontName="Helvetica", fontSize=7.5, leading=10,
                                     textColor=PESOS_LABEL, alignment=TA_CENTER)
 
     # Header
@@ -414,7 +474,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
         Paragraph("Placa", th_style),
         Paragraph("Data", th_style),
         Paragraph("Produto", th_style),
-        Paragraph("Pesos", th_style),
+        Paragraph("Pesos (kg)", th_style),
         Paragraph("Status", th_style),
         Paragraph("Detalhe", th_style),
     ]]
@@ -428,8 +488,28 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
         # Ítem
         item_cell = Paragraph(str(idx + 1).zfill(2), item_style)
 
-        # SEV
-        sev_cell = Paragraph(item.get("SEV", "—") or "—", sev_style)
+        # SEV — tag estilizada
+        sev_raw = item.get("SEV", "") or ""
+        if sev_raw:
+            sev_tag_style = ParagraphStyle(
+                "SevTag", fontName="Helvetica", fontSize=7.5, leading=10,
+                textColor=SLATE_700, alignment=TA_CENTER
+            )
+            sev_cell = Table(
+                [[Paragraph(sev_raw, sev_tag_style)]],
+                colWidths=[div_col_widths[1] - 4],
+                style=[
+                    ("BACKGROUND", (0, 0), (-1, -1), CODE_TAG_BG),
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("TOPPADDING", (0, 0), (-1, -1), 2),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 2),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+                ]
+            )
+        else:
+            sev_cell = Paragraph("\u2014", sev_style)
 
         # Placa — tag sem borda (fundo cinza sutil)
         placa_val = item.get("Placa", "—")
@@ -480,11 +560,12 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
                     val_str = f"{int(float(val)):,}".replace(",", ".")
                 except Exception:
                     val_str = str(val)
+            # Use non-breaking spaces (\xa0) to prevent word-wrap on the value
+            val_str_nb = val_str.replace(" ", "\xa0")
             return (
-                f'<font color="{PESOS_LABEL.hexval()}"><b>{label}</b></font>'
+                f'<font color="{PESOS_LABEL.hexval()}" size="7">{label}</font>'
                 f'<br/>'
-                f'<font color="{PESOS_VALUE.hexval()}" size="9">{val_str}</font>'
-                f' <font color="{PESOS_LABEL.hexval()}" size="7">kg</font>'
+                f'<font color="{PESOS_VALUE.hexval()}" size="8"><b>{val_str_nb}</b></font>'
             )
 
         pesos_row = [
@@ -492,9 +573,10 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
             Paragraph(_peso_block("TARA", tara), peso_col_style),
             Paragraph(_peso_block("LÍQ.", pl), peso_col_style),
         ]
+        peso_sub_w = (div_col_widths[5] - 4) / 3
         pesos_table = Table(
             [pesos_row],
-            colWidths=[div_col_widths[5] / 3] * 3,
+            colWidths=[peso_sub_w] * 3,
             style=[
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("ALIGN", (0, 0), (-1, -1), "CENTER"),
@@ -502,6 +584,8 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
                 ("LINEAFTER", (1, 0), (1, -1), 0.5, PESOS_SEP),
                 ("TOPPADDING", (0, 0), (-1, -1), 2),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                ("LEFTPADDING", (0, 0), (-1, -1), 1),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 1),
             ]
         )
 
@@ -510,7 +594,9 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
         if "erro de placa" in s:
             badge_bg, badge_fg = STATUS_ERRO_BG, STATUS_ERRO_FG
         elif "falta no excel" in s:
-            badge_bg, badge_fg = STATUS_FALTA_BG, STATUS_FALTA_FG
+            badge_bg, badge_fg = STATUS_FALTA_EXCEL_BG, STATUS_FALTA_EXCEL_FG
+        elif "falta no pdf" in s:
+            badge_bg, badge_fg = STATUS_FALTA_PDF_BG, STATUS_FALTA_PDF_FG
         else:
             badge_bg, badge_fg = STATUS_ERRO_BG, STATUS_ERRO_FG
 
@@ -596,7 +682,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
 
     div_table = Table(div_table_data, colWidths=div_col_widths, style=div_t_style, repeatRows=1)
     story.append(div_table)
-    story.append(Spacer(1, 18))
+    story.append(Spacer(1, 24))
 
     # ══════════════════════════════════════════════════════════════
     # SEÇÃO 2: Resumo Operacional (caixa estilizada)
@@ -687,7 +773,38 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
 
     kpi_table = Table(kpi_data, colWidths=kpi_col_w, style=kpi_style)
     story.append(kpi_table)
-    story.append(Spacer(1, 18))
+    story.append(Spacer(1, 6))
+
+    # ── Barra de Progresso Visual ──────────────────────────────
+    bar_total_w = 535.3
+    bar_fill_w = max(bar_total_w * (pct_sem_erro / 100.0), 1)
+    bar_empty_w = bar_total_w - bar_fill_w
+
+    bar_fill_color = status_color
+    bar_bg_color = SLATE_100
+
+    bar_label_style = ParagraphStyle(
+        "BarLabel", fontName="Helvetica-Bold", fontSize=7,
+        leading=9, textColor=colors.white, alignment=TA_CENTER
+    )
+    bar_data = [[Paragraph(f"{pct_str} Conformidade", bar_label_style), Paragraph("", bar_label_style)]]
+    bar_table = Table(
+        bar_data,
+        colWidths=[bar_fill_w, bar_empty_w],
+        rowHeights=[16],
+        style=[
+            ("BACKGROUND", (0, 0), (0, 0), bar_fill_color),
+            ("BACKGROUND", (1, 0), (1, 0), bar_bg_color),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ]
+    )
+    story.append(bar_table)
+    story.append(Spacer(1, 24))
 
     # ══════════════════════════════════════════════════════════════
     # SEÇÃO 3: Plano de Ação (dinâmico)
@@ -709,44 +826,140 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
         story.append(Spacer(1, 4))
 
         # Recomendações condicionais baseadas nos tipos de erro encontrados
+        action_num = 1
         if "Erro de Placa" in error_types_found:
             story.append(Paragraph(
-                "• <b>Correção de Digitação de Placas:</b> Foram identificados erros na digitação "
+                f"{action_num}. <b>Correção de Digitação de Placas:</b> Foram identificados erros na digitação "
                 "de placas entre a planilha Excel e o relatório OpenPort. Orientar os balanceiros para "
                 "reforçar a conferência visual da placa antes do registro, especialmente em situações de "
                 "alto volume de operação.",
                 bullet_style
             ))
+            action_num += 1
 
         if "Falta no Excel" in error_types_found:
             story.append(Paragraph(
-                "• <b>Registros Ausentes na Planilha:</b> Existem pesagens registradas no sistema OpenPort "
+                f"{action_num}. <b>Registros Ausentes na Planilha:</b> Existem pesagens registradas no sistema OpenPort "
                 "que não constam na planilha Excel. Verificar se houve omissão no preenchimento manual "
                 "e orientar a equipe para que todas as pesagens sejam devidamente registradas.",
                 bullet_style
             ))
+            action_num += 1
 
         if "Falta no PDF" in error_types_found:
             story.append(Paragraph(
-                "• <b>Registros Ausentes no OpenPort:</b> Existem registros na planilha Excel que não "
+                f"{action_num}. <b>Registros Ausentes no OpenPort:</b> Existem registros na planilha Excel que não "
                 "possuem correspondência no relatório OpenPort. Verificar se a balança estava operando "
                 "corretamente nos períodos correspondentes e se o sistema registrou todas as pesagens.",
                 bullet_style
             ))
+            action_num += 1
 
         if "Diferença de Peso" in error_types_found:
             story.append(Paragraph(
-                "• <b>Diferenças de Peso:</b> Foram constatadas divergências nos valores de peso bruto "
+                f"{action_num}. <b>Diferenças de Peso:</b> Foram constatadas divergências nos valores de peso bruto "
                 "e/ou tara entre as fontes. Verificar a calibração das balanças e se os valores estão "
                 "sendo transferidos corretamente para as planilhas.",
                 bullet_style
             ))
+            action_num += 1
 
 
+
+    # ══════════════════════════════════════════════════════════════
+    # SEÇÃO 4: Resumo por Produto
+    # ══════════════════════════════════════════════════════════════
+    story.append(Spacer(1, 24))
+    # Os elementos desta seção são agrupados com KeepTogether para
+    # evitar que a tabela de produtos seja separada do título em
+    # páginas diferentes.
+    sec4_elements = []
+    sec4_elements.append(Paragraph("4. Resumo por Produto", title_style))
+    sec4_elements.append(Paragraph(
+        "Distribuição das viagens e divergências agrupadas por produto movimentado:",
+        body_style
+    ))
+    sec4_elements.append(Spacer(1, 4))
+
+    # Agrupar dados por produto
+    prod_stats = {}
+    for item in filtered_ok:
+        prod = (item.get("Produto", "") or "").replace(" (Deduzido)", "").strip()
+        if not prod or prod in ("Não Identificado", "") or prod.startswith("Ambíguo"):
+            prod = "Não Identificado"
+        if prod not in prod_stats:
+            prod_stats[prod] = {"viagens": 0, "divergencias": 0}
+        prod_stats[prod]["viagens"] += 1
+
+    for item in filtered_div:
+        prod = (item.get("Produto", "") or "").replace(" (Deduzido)", "").strip()
+        if not prod or prod in ("Não Identificado", "") or prod.startswith("Ambíguo"):
+            prod = "Não Identificado"
+        if prod not in prod_stats:
+            prod_stats[prod] = {"viagens": 0, "divergencias": 0}
+        prod_stats[prod]["viagens"] += 1
+        prod_stats[prod]["divergencias"] += 1
+
+    if prod_stats:
+        prod_th = ParagraphStyle("ProdTH", fontName="Helvetica-Bold", fontSize=8,
+                                  leading=10, textColor=colors.white, alignment=TA_LEFT)
+        prod_th_c = ParagraphStyle("ProdTHC", fontName="Helvetica-Bold", fontSize=8,
+                                    leading=10, textColor=colors.white, alignment=TA_CENTER)
+        prod_td = ParagraphStyle("ProdTD", fontName="Helvetica", fontSize=8,
+                                  leading=11, textColor=SLATE_700, alignment=TA_LEFT)
+        prod_td_c = ParagraphStyle("ProdTDC", fontName="Helvetica", fontSize=8,
+                                    leading=11, textColor=SLATE_700, alignment=TA_CENTER)
+        prod_td_g = ParagraphStyle("ProdTDG", fontName="Helvetica-Bold", fontSize=8,
+                                    leading=11, textColor=GREEN_700, alignment=TA_CENTER)
+
+        prod_table_data = [[
+            Paragraph("Produto", prod_th),
+            Paragraph("Viagens", prod_th_c),
+            Paragraph("Divergências", prod_th_c),
+            Paragraph("% Conformidade", prod_th_c),
+        ]]
+
+        for prod_name in sorted(prod_stats.keys()):
+            stats = prod_stats[prod_name]
+            total = stats["viagens"]
+            divs = stats["divergencias"]
+            pct = ((total - divs) / total * 100.0) if total > 0 else 0.0
+            pct_formatted = f"{pct:.1f}%".replace(".", ",")
+            pct_style = prod_td_g if pct >= 95.0 else prod_td_c
+
+            prod_table_data.append([
+                Paragraph(prod_name, prod_td),
+                Paragraph(str(total), prod_td_c),
+                Paragraph(str(divs), prod_td_c),
+                Paragraph(pct_formatted, pct_style),
+            ])
+
+        prod_col_w = [200, 111.77, 111.77, 111.77]
+        prod_t_style = TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), SLATE_900),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("INNERGRID", (0, 0), (-1, -1), 0.3, SLATE_200),
+            ("BOX", (0, 0), (-1, -1), 0.5, SLATE_300),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            *[("BACKGROUND", (0, i + 1), (-1, i + 1),
+               ZEBRA_ODD if i % 2 == 1 else colors.white)
+              for i in range(len(prod_stats))],
+        ])
+
+        prod_table = Table(prod_table_data, colWidths=prod_col_w, style=prod_t_style, repeatRows=1)
+        sec4_elements.append(prod_table)
+
+    # Agrupar toda a seção 4 com KeepTogether para não separar entre páginas
+    story.append(KeepTogether(sec4_elements))
+
+    # Campo de assinatura removido conforme solicitação.
 
     # Injetar variáveis de instância no canvasmaker personalizado
     integrity_hash = payload.get("integrity_hash", "")
-    canvasmaker = make_canvas_maker(periodo_str, emissao_str, integrity_hash)
+    canvasmaker = make_canvas_maker(periodo_str, emissao_str, integrity_hash, has_divergencias=(num_div > 0))
 
     # Build PDF
     doc.build(story, canvasmaker=canvasmaker)
@@ -755,11 +968,12 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
     buffer.close()
     return pdf_bytes, filename
 
-def make_canvas_maker(periodo_str: str, emissao_str: str, integrity_hash: str):
+def make_canvas_maker(periodo_str: str, emissao_str: str, integrity_hash: str, has_divergencias: bool = True):
     class CustomNumberedCanvas(NumberedCanvas):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
             self._periodo_str = periodo_str
             self._emissao_str = emissao_str
             self._integrity_hash = integrity_hash
+            self._has_divergencias = has_divergencias
     return CustomNumberedCanvas

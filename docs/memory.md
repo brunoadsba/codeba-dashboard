@@ -1,6 +1,6 @@
 # Memória do Projeto (CODEBA Dashboard de Auditoria)
 
-**Estado Atual:** Sistema de Auditoria de Pesagens **v5.2.0** — Multi-Produto com Analytics Dinâmico, Persistência SQLite, Histórico Consultável, Identidade Visual CODEBA, Desduplicação de Pesagens do OpenPort, Geração de Relatório PDF. Tabela de **7 colunas** com SEV como coluna dedicada: `ÍTEM | SEV | PLACA | DATA/HORA | PRODUTO | PESOS | STATUS`. Painel de detalhes inline expansível com layout flex, overflow controlado, quebra de texto (`word-break: break-word`), e espaçamento de 6px entre linhas de informações. Sistema de feedback padronizado para funcionalidades não implementadas: **Toast** (Corrigir Placa, Ignorar, Abrir no Excel, Corrigir) e **Modal** (Cadastrar viagem) — função `handleNotImplemented(actionName, mode)`. Botões com dimming visual (`opacity: 0.65` → `1` no hover) e tooltip `title="Funcionalidade em desenvolvimento"`. Ícones Phosphor nos badges de status. Pesos em linha única (`Bruto / Tara / **Líquido**`), scrollbar oculta, `table-layout: fixed`. Hierarquia visual de placa: placa corrigida (verde, bold) → placa original (cinza, itálico) → SEV na coluna separada.
+**Estado Atual:** Sistema de Auditoria de Pesagens **v5.4.0** — Multi-Produto com Analytics Dinâmico, Persistência SQLite, Histórico Consultável, Identidade Visual CODEBA, Desduplicação de Pesagens do OpenPort, Geração de Relatório PDF. Relatório Executivo PDF com 8 melhorias visuais e estruturais (legenda de cores, contadores de tipo de erro, tags SEV, título dinâmico, barra de conformidade, resumo por produto e campo de assinatura). Tabela de **7 colunas** com SEV como coluna dedicada: `ÍTEM | SEV | PLACA | DATA/HORA | PRODUTO | PESOS | STATUS`. Painel de detalhes inline expansível com layout flex, overflow controlado, quebra de texto (`word-break: break-word`, com herança de `nowrap` corrigida no `td`), e espaçamento de 6px entre linhas de informações. Cores de badges sincronizadas entre Web e PDF. Sistema de feedback padronizado para funcionalidades não implementadas: **Toast** e **Modal** — função `handleNotImplemented(actionName, mode)`. Botões com dimming visual e tooltips. Ícones Phosphor nos badges de status. Pesos em linha única (`Bruto / Tara / **Líquido**`), scrollbar oculta, `table-layout: fixed`. Hierarquia visual de placa: placa corrigida (verde, bold) → placa original (cinza, itálico) → SEV na coluna separada.
 
 Dashboard cruza dados de múltiplas planilhas Excel (digitação manual do balanceiro, organizadas por produto) com o PDF do OpenPort (pesagem automática) para identificar divergências, propagar informação de produto, deduzir associações por histórico de placas e visualizar **volume em toneladas** por produto e período. A aplicação segue Clean Architecture e 12-Factor App.
 
@@ -471,6 +471,41 @@ Recarregar do histórico: `GET /api/runs/{id}` → mesmo pipeline de renderizaç
 107. **Dimming Visual:** O container `.detail-actions-wrapper` inicia com `opacity: 0.65` e sobe para `1` no hover, sinalizando visualmente que as ações ainda não estão totalmente ativas.
 108. **Tooltip via CSS:** Botões com `title` exibem um tooltip puro CSS via pseudo-elemento `::after` posicionado acima do botão, com `opacity` transition de 0→1 no hover. Remove a necessidade de bibliotecas externas de tooltip.
 109. **Tooltips nos Botões:** Todos os botões de ação agora possuem `title="Funcionalidade em desenvolvimento"` — Corrigir Placa, Ignorar, Cadastrar viagem, Corrigir, Abrir no Excel.
+
+---
+
+### v5.3.0 (Correções de UX/UI - Badges de Status e Quebra de Linha de Texto)
+
+110. **Ajuste de Largura da Coluna Status:** Aumentada a largura da coluna Status para `16%` e `min-width: 170px` (removendo o `max-width` rígido), garantindo que badges compridos (como "Pesagem Incompleta") e o ícone de chevron não fiquem espremidos ou com partes ocultadas.
+111. **Alinhamento do Chevron da Tabela:** Criada a classe `.status-cell-container` usando `inline-flex` e `gap: 6px`, definindo `flex-shrink: 0` para o ícone de chevron para que ele nunca seja "engolido" pela largura do texto do badge.
+112. **Quebra de Texto no Painel de Detalhes:** Resolvido o bug crítico em que textos longos da descrição de erros (como em "Pesagem Incompleta") eram cortados horizontalmente. Como o `.detail-row td` é a primeira célula daquela linha expandida, o navegador aplicava a ele a regra de coluna `td:nth-child(1)` que definia `white-space: nowrap`. Resolvido ao aplicar `white-space: normal !important;` na célula do painel expandido.
+113. **Correção de Sintaxe CSS e Cache Busting:** Removidos caracteres de escape literais (`\r\n`) inseridos acidentalmente no CSS, e atualizada a versão de cache-busting dos assets no `index.html` para `v4.8` para garantir o recarregamento imediato nos navegadores dos clientes.
+114. **Cores e Ícones Distintos para Divergências:** Customizados os badges para facilitar a identificação rápida pelo operador:
+    - **Erro de Placa:** Cor Ambar (`#f59e0b` / fundo translúcido) + Ícone de Crachá (`ph-identification-card`).
+    - **Falta no PDF:** Cor Vermelho Coral (`#f87171` / fundo translúcido) + Ícone PDF (`ph-file-pdf`).
+    - **Falta no Excel:** Cor Azul Índigo (`#a5b4fc` / fundo translúcido) + Ícone de Planilha Inexistente (`ph-file-x`).
+    - **Diferença de Peso:** Cor Laranja (`#fb923c` / fundo translúcido) + Ícone Balança (`ph-scales`).
+
+---
+
+### v5.4.0 (Melhorias de UX no Relatório PDF Executivo)
+
+115. **Sincronização de Cores Web vs PDF:** Padronização das cores dos status nos badges em toda a plataforma para manter a harmonia visual.
+    - `Erro de Placa` -> **Vermelho** (`#B91C1C` / fundo `#FEF2F2` no PDF; `#ef4444` no Web).
+    - `Falta no Excel` -> **Amarelo/Âmbar** (`#B45309` / fundo `#FFFBEB` no PDF; `#f59e0b` no Web).
+    - `Falta no PDF` -> **Azul** (`#1D4ED8` / fundo `#EFF6FF` no PDF; `#3b82f6` no Web).
+116. **Legenda de Cores no PDF:** Introdução de uma mini-legenda horizontal explicativa antes da tabela de divergências.
+117. **Tabela de Contadores de Erro no PDF:** Inclusão de um bloco de contagem rápida quantitativo para que o gestor saiba o total e o tipo de cada inconsistência sem precisar contá-las manualmente.
+118. **SEV Formatado como Tag no PDF:** A coluna SEV agora exibe o código no mesmo estilo das placas de veículo (tag com fundo cinza sutil), mantendo o padrão executivo e melhorando o contraste.
+119. **Título de Cabeçalho Dinâmico:** O cabeçalho no canvas do PDF agora se adapta: exibe "Relatório de Conformidade" quando não há erros e "Relatório de Não Conformidade" quando há.
+120. **Barra de Conformidade Visual:** Adição de uma barra de progresso horizontal abaixo dos KPIs, colorida de acordo com o nível de conformidade geral atingido (verde/âmbar/vermelho).
+121. **Seção 4 (Resumo por Produto):** Tabela agrupando as viagens totais, divergências e taxas percentuais de conformidade calculadas para cada produto movimentado. Percentual maior ou igual a 95% recebe destaque em verde negrito.
+122. **Campo de Assinatura Documental:** Adicionada uma área formal de assinatura na última folha do PDF para o auditor e a coordenação operacional.
+123. **Remoção de Redundância de Unidade e Polish de Spacing:**
+    - O cabeçalho da coluna de pesos mudou para "Pesos (kg)".
+    - O sufixo "kg" foi retirado de cada valor de peso na tabela, eliminando poluição visual.
+    - Espaçamento entre seções ampliado de 18pt para 24pt e bullets do Plano de Ação alterados para numeração (1., 2., 3., 4.).
+124. **Cache Busting das Telas:** Incremento da versão de cache-busting do CSS e do JS no `index.html` para `v4.9`.
 
 ---
 
