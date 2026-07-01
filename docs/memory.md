@@ -1,6 +1,6 @@
 # Memória do Projeto (CODEBA Dashboard de Auditoria)
 
-**Estado Atual:** Sistema de Auditoria de Pesagens **v5.4.0** — Multi-Produto com Analytics Dinâmico, Persistência SQLite, Histórico Consultável, Identidade Visual CODEBA, Desduplicação de Pesagens do OpenPort, Geração de Relatório PDF. Relatório Executivo PDF com 8 melhorias visuais e estruturais (legenda de cores, contadores de tipo de erro, tags SEV, título dinâmico, barra de conformidade, resumo por produto e campo de assinatura). Tabela de **7 colunas** com SEV como coluna dedicada: `ÍTEM | SEV | PLACA | DATA/HORA | PRODUTO | PESOS | STATUS`. Painel de detalhes inline expansível com layout flex, overflow controlado, quebra de texto (`word-break: break-word`, com herança de `nowrap` corrigida no `td`), e espaçamento de 6px entre linhas de informações. Cores de badges sincronizadas entre Web e PDF. Sistema de feedback padronizado para funcionalidades não implementadas: **Toast** e **Modal** — função `handleNotImplemented(actionName, mode)`. Botões com dimming visual e tooltips. Ícones Phosphor nos badges de status. Pesos em linha única (`Bruto / Tara / **Líquido**`), scrollbar oculta, `table-layout: fixed`. Hierarquia visual de placa: placa corrigida (verde, bold) → placa original (cinza, itálico) → SEV na coluna separada.
+**Estado Atual:** Sistema de Auditoria de Pesagens **v5.5.0** — Multi-Produto com Analytics Dinâmico, Persistência SQLite, Histórico Consultável, Identidade Visual CODEBA, Desduplicação de Pesagens do OpenPort, Geração de Relatório PDF. Relatório Executivo PDF com 11 melhorias visuais e estruturais (dados centralizados, data em linha única, explicação clara de placa, badge sem overflow, cabeçalho centralizado, legenda de cores, contadores de erro, tags SEV, barra de conformidade, resumo por produto e campo de assinatura). Tabela de **7 colunas** com SEV como coluna dedicada: `ÍTEM | SEV | PLACA | DATA/HORA | PRODUTO | PESOS | STATUS`. Painel de detalhes inline expansível com layout flex, overflow controlado, quebra de texto, e espaçamento de 6px entre linhas. Cores de badges sincronizadas entre Web e PDF. Sistema de feedback padronizado para funcionalidades não implementadas: **Toast** e **Modal** — função `handleNotImplemented(actionName, mode)`. Botões com dimming visual e tooltips. Pesos em linha única (`Bruto / Tara / **Líquido**`), scrollbar oculta, `table-layout: fixed`.
 
 Dashboard cruza dados de múltiplas planilhas Excel (digitação manual do balanceiro, organizadas por produto) com o PDF do OpenPort (pesagem automática) para identificar divergências, propagar informação de produto, deduzir associações por histórico de placas e visualizar **volume em toneladas** por produto e período. A aplicação segue Clean Architecture e 12-Factor App.
 
@@ -505,7 +505,19 @@ Recarregar do histórico: `GET /api/runs/{id}` → mesmo pipeline de renderizaç
     - O cabeçalho da coluna de pesos mudou para "Pesos (kg)".
     - O sufixo "kg" foi retirado de cada valor de peso na tabela, eliminando poluição visual.
     - Espaçamento entre seções ampliado de 18pt para 24pt e bullets do Plano de Ação alterados para numeração (1., 2., 3., 4.).
-124. **Cache Busting das Telas:** Incremento da versão de cache-busting do CSS e do JS no `index.html` para `v4.9`.
+ 124. **Cache Busting das Telas:** Incremento da versão de cache-busting do CSS e do JS no `index.html` para `v4.9`.
+
+---
+
+### v5.5.0 (Ajustes Finos no Relatório PDF)
+
+125. **Centralização das Colunas PRODUTO e Detalhe:** Os dados das colunas Produto e Detalhe na tabela de divergências do PDF foram centralizados (`alignment=TA_CENTER`), melhorando a legibilidade e o alinhamento visual com as demais colunas.
+126. **Data em Linha Única:** A coluna Data, antes dividida em duas linhas (data + hora em tabela separada), agora exibe o valor completo em um único `Paragraph`. Largura da coluna ajustada de 52pt para 65pt (reduzindo Detalhe de 121pt para 108pt) para acomodar o formato `DD/MM/YYYY HH:MM`.
+127. **Explicação Clara do Erro de Placa:** O texto de Detalhe para erros de placa foi reformulado para duas linhas organizadas:
+    - `Placa digitada no Excel: <placa em vermelho>`
+    - `Placa correta do OpenPort: <placa em verde>`
+128. **Correção de Overflow do Badge de Status:** O badge de Status usava `colWidths=54pt` dentro de uma célula com apenas `48pt` disponíveis (56pt - 8pt de padding do pai), fazendo a borda do badge transbordar para a coluna Detalhe. Corrigido ajustando `colWidths` para `-10` e reduzindo o padding interno de 6pt para 4pt.
+129. **Cabeçalho Centralizado:** O título "Relatório de Não Conformidade" e as linhas "Período Auditado" e "Base de Dados" foram centralizados no cabeçalho (`drawCentredString(page_w / 2, ...)`), mantendo a logo CODEBA à esquerda.
 
 ---
 

@@ -139,13 +139,13 @@ class NumberedCanvas(canvas.Canvas):
         title_text = "Relatório de Não Conformidade" if has_div else "Relatório de Conformidade"
         self.setFillColor(colors.white)
         self.setFont("Helvetica-Bold", 16)
-        self.drawString(170, bar_y + 38, title_text)
+        self.drawCentredString(page_w / 2, bar_y + 38, title_text)
 
         periodo_str = getattr(self, "_periodo_str", "—")
         self.setFillColor(colors.HexColor("#94A3B8"))  # Slate 400
         self.setFont("Helvetica", 9)
-        self.drawString(170, bar_y + 22, f"Período Auditado: {periodo_str}")
-        self.drawString(170, bar_y + 10, "Base de Dados: Relatório OpenPort (Tela 7714)")
+        self.drawCentredString(page_w / 2, bar_y + 22, f"Período Auditado: {periodo_str}")
+        self.drawCentredString(page_w / 2, bar_y + 10, "Base de Dados: Relatório OpenPort (Tela 7714)")
 
         # ── 4. Linha de separação abaixo da faixa ─────────────────
         self.setStrokeColor(SLATE_200)
@@ -443,7 +443,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
     # ── Construir tabela de divergências (8 colunas) ─────────────
     # Larguras: total ~535pt (A4 - 60pt margens)
     # Pesos (kg) ampliado de 100 para 130pt para evitar quebra de valores
-    div_col_widths = [26, 38, 52, 52, 60, 130, 56, 121]
+    div_col_widths = [26, 38, 52, 65, 60, 130, 56, 108]
 
     # Estilos
     item_style = ParagraphStyle("ItemNum", fontName="Helvetica", fontSize=8, leading=11,
@@ -452,16 +452,14 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
                                textColor=SLATE_700, alignment=TA_CENTER)
     placa_style = ParagraphStyle("PlacaVal", fontName="Helvetica-Bold", fontSize=8, leading=11,
                                  textColor=SLATE_900, alignment=TA_CENTER)
-    data_date_style = ParagraphStyle("DataDate", fontName="Helvetica", fontSize=8, leading=11,
-                                     textColor=SLATE_700, alignment=TA_CENTER)
-    data_time_style = ParagraphStyle("DataTime", fontName="Helvetica", fontSize=7, leading=9,
-                                     textColor=SLATE_500, alignment=TA_CENTER)
+    data_style = ParagraphStyle("DataCell", fontName="Helvetica", fontSize=8, leading=11,
+                                textColor=SLATE_700, alignment=TA_CENTER)
     prod_style = ParagraphStyle("ProdCell", fontName="Helvetica", fontSize=8, leading=11,
-                                textColor=SLATE_700, alignment=TA_LEFT)
+                                textColor=SLATE_700, alignment=TA_CENTER)
     det_diag_style = ParagraphStyle("DetDiag", fontName="Helvetica", fontSize=8, leading=11,
-                                    textColor=SLATE_600, alignment=TA_LEFT)
+                                    textColor=SLATE_600, alignment=TA_CENTER)
     det_corr_style = ParagraphStyle("DetCorr", fontName="Helvetica", fontSize=7.5, leading=10,
-                                    textColor=SLATE_500, alignment=TA_LEFT)
+                                    textColor=SLATE_500, alignment=TA_CENTER)
 
     # Estilo coluna pesos (label + valor por coluna)
     peso_col_style = ParagraphStyle("PesoCol", fontName="Helvetica", fontSize=7.5, leading=10,
@@ -527,18 +525,9 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
             ]
         )
 
-        # Data — date + time em duas linhas
+        # Data — linha única (data + hora)
         dt_raw = item.get("Data", "—")
-        if " " in dt_raw:
-            date_part, time_part = dt_raw.split(" ", 1)
-        else:
-            date_part, time_part = dt_raw, ""
-        date_parts = [[Paragraph(date_part, data_date_style)]]
-        if time_part:
-            date_parts.append([Paragraph(time_part, data_time_style)])
-        data_table = Table(date_parts, colWidths=[div_col_widths[3] - 2],
-                           style=[("TOPPADDING", (0, 0), (-1, -1), 1),
-                                  ("BOTTOMPADDING", (0, 0), (-1, -1), 1)])
+        data_cell = Paragraph(dt_raw, data_style)
 
         # Produto
         prod_raw = item.get("Produto", "") or ""
@@ -604,7 +593,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
                                      textColor=badge_fg, alignment=TA_CENTER)
         badge_table = Table(
             [[Paragraph(status, badge_style)]],
-            colWidths=[div_col_widths[6] - 2],
+            colWidths=[div_col_widths[6] - 10],
             style=[
                 ("BACKGROUND", (0, 0), (-1, -1), badge_bg),
                 ("BOX", (0, 0), (-1, -1), 0.5, badge_fg),
@@ -612,12 +601,12 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("TOPPADDING", (0, 0), (-1, -1), 2),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-                ("LEFTPADDING", (0, 0), (-1, -1), 6),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
             ]
         )
 
-        # Detalhe — 2 níveis com hierarquia
+        # Detalhe — explicação clara do erro
         placa_excel = item.get("Placa_Excel", "")
         placa_pdf = item.get("Placa_PDF", "")
         linha_erro = item.get("linha_erro_data", "")
@@ -626,24 +615,28 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
         data_errada = item.get("data_errada_excel", "")
 
         if placa_excel and placa_pdf:
-            diag = Paragraph("Placa digitada incorretamente.", det_diag_style)
-            corr = Paragraph(
-                f'<font color="#94A3B8">{placa_excel}</font>'
-                f' <font color="#64748B">→</font> '
-                f'<font face="Courier" color="#0F172A" backcolor="#F1F5F9">{placa_pdf}</font>',
+            diag = Paragraph(
+                f'Placa digitada no Excel: <font color="#B91C1C">{placa_excel}</font>',
+                det_diag_style
+            )
+            nota = Paragraph(
+                f'Placa correta do OpenPort: <font color="#15803D"><b>{placa_pdf}</b></font>',
                 det_corr_style
             )
-            detalhe_rows = [[diag], [corr]]
+            detalhe_rows = [[diag], [nota]]
         elif linha_erro:
-            diag = Paragraph("Registro no PDF sem correspondência na planilha.", det_diag_style)
+            diag = Paragraph(
+                "Registro do OpenPort sem correspondência na planilha Excel.",
+                det_diag_style
+            )
             nota = (
                 f"Linha {linha_erro}"
-                + (f" (Aba '{aba_erro}')" if aba_erro else "")
-                + (f" de {arquivo_erro}" if arquivo_erro else "")
-                + (f" com data {data_errada}." if data_errada else ".")
+                + (f", Aba '{aba_erro}'" if aba_erro else "")
+                + (f", Arquivo: {arquivo_erro}" if arquivo_erro else "")
+                + (f", Data informada: {data_errada}." if data_errada else ".")
             )
             nota_style = ParagraphStyle("DetNota", fontName="Helvetica", fontSize=7, leading=9,
-                                        textColor=SLATE_500, alignment=TA_LEFT)
+                                        textColor=SLATE_500, alignment=TA_CENTER)
             detalhe_rows = [[diag], [Paragraph(nota, nota_style)]]
         else:
             diag = Paragraph(item.get("Detalhe", "") or "", det_diag_style)
@@ -653,7 +646,7 @@ def generate_pdf_report(payload: dict[str, Any], filters: dict[str, Any]) -> tup
                               style=[("TOPPADDING", (0, 0), (-1, -1), 1),
                                      ("BOTTOMPADDING", (0, 0), (-1, -1), 1)])
 
-        row = [item_cell, sev_cell, placa_tag, data_table, prod_cell,
+        row = [item_cell, sev_cell, placa_tag, data_cell, prod_cell,
                pesos_table, badge_table, detalhe_inner]
         div_table_data.append(row)
 

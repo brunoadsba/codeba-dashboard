@@ -1,4 +1,4 @@
-# CODEBA — Dashboard de Auditoria de Pesagens (v5.4.0)
+# CODEBA — Dashboard de Auditoria de Pesagens (v5.5.0)
 
 Este projeto realiza a **conciliação e auditoria de pesagens rodoviárias** comparando as planilhas da CODEBA (origem Excel, digitação manual do balanceiro) com os registros do OpenPort (PDF, pesagem automática). Ele identifica automaticamente divergências de peso, placas digitadas incorretamente no Excel, deduz o produto com base no histórico do caminhão e gera relatórios analíticos com gráficos de volume e relatório executivo PDF.
 
